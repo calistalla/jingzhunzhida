@@ -1,0 +1,3466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智析 · 企业运营分析与决策支持多智能体平台</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   1. DESIGN TOKENS
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --bg-deep: #060608;
+  --bg-app: #0A0A0E;
+  --bg-surface: #111114;
+  --bg-card: #16161A;
+  --bg-card-hover: #1E1E24;
+  --bg-input: #0C0C10;
+
+  --text-primary: #f0f4fa;
+  --text-secondary: #a3b1c6;
+  --text-muted: #7a8899;
+  --text-placeholder: #56647a;
+
+  --accent-blue: #A78BFA;
+  --accent-purple: #7B61FF;
+  --accent-cyan: #00E5FF;
+  --accent-red: #FF4D6D;
+  --accent-green: #10b981;
+  --accent-yellow: #fbbf24;
+  --accent-orange: #FF8C42;
+
+  --gradient-primary: linear-gradient(135deg, #7B61FF, #7B61FF);
+  --gradient-investor: linear-gradient(135deg, #7B61FF, #6366F1);
+  --gradient-enterprise: linear-gradient(135deg, #00E5FF, #7B61FF);
+  --gradient-risk: linear-gradient(135deg, #FF4D6D, #FF8C42);
+
+  --glow-blue: 0 0 30px rgba(139,92,246,0.15);
+  --glow-cyan: 0 0 30px rgba(0,229,255,0.15);
+  --glow-purple: 0 0 30px rgba(139,92,246,0.15);
+  --glow-red: 0 0 30px rgba(255,77,109,0.15);
+
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-light: rgba(255,255,255,0.08);
+  --border-active: rgba(139,92,246,0.3);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --nav-h: 60px;
+  --sidebar-w: 280px;
+  --viz-w: 580px;
+
+  --font-sans: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   2. RESET & BASE
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+  min-height: 100vh;
+  position: relative;
+}
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+button { cursor: pointer; border: none; background: none; font-family: inherit; color: inherit; }
+input, textarea { font-family: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ═══════════════════════════════════════════════════════════
+   3. GLOBAL LEFT SIDEBAR
+   ═══════════════════════════════════════════════════════════ */
+.app-shell { display: flex; height: 100vh; overflow: hidden; }
+
+.global-sidebar {
+  width: 260px;
+  background: rgba(10, 10, 14, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border-subtle);
+  display: flex; flex-direction: column;
+  flex-shrink: 0;
+  padding: 20px 14px;
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  z-index: 200;
+  transition: transform 0.4s cubic-bezier(.4,0,.2,1), width 0.3s cubic-bezier(.4,0,.2,1), padding 0.3s cubic-bezier(.4,0,.2,1);
+  transform: translateX(-100%);
+}
+.global-sidebar.open {
+  transform: translateX(0);
+}
+.sidebar-toggle {
+  position: fixed;
+  top: 20px; left: 20px;
+  z-index: 150;
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: rgba(139,92,246,0.1);
+  border: 1px solid rgba(139,92,246,0.2);
+  color: #7B61FF;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.sidebar-toggle:hover {
+  background: #7B61FF;
+  color: #fff;
+}
+.global-sidebar.open ~ .sidebar-toggle {
+  opacity: 0;
+  pointer-events: none;
+}
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 199;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+.sidebar-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.global-sidebar.collapsed {
+  width: 68px;
+  padding: 20px 10px;
+}
+.global-sidebar.collapsed .gs-brand-text,
+.global-sidebar.collapsed .gs-search,
+.global-sidebar.collapsed .gs-nav-item span,
+.global-sidebar.collapsed .gs-section-label,
+.global-sidebar.collapsed .gs-pinned,
+.global-sidebar.collapsed .gs-bottom .gs-nav-item span,
+.global-sidebar.collapsed .gs-divider {
+  opacity: 0;
+  width: 0; height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.gs-expand-btn {
+  display: none;
+  width: 100%; height: 36px;
+  align-items: center; justify-content: center;
+  font-size: 16px; color: var(--text-muted);
+  border-radius: 6px; margin-bottom: 8px;
+  transition: all 0.2s;
+}
+.gs-expand-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.global-sidebar.collapsed .gs-brand { padding: 4px 0 12px; justify-content: center; gap: 0; }
+.global-sidebar.collapsed .gs-brand-actions { display: none; }
+.global-sidebar.collapsed .gs-nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+.global-sidebar.collapsed .gs-nav-item i:first-child { margin: 0; }
+.global-sidebar.collapsed .gs-bottom { padding-top: 8px; }
+.global-sidebar.collapsed .gs-bottom .gs-nav-item { justify-content: center; padding: 10px 0; }
+.global-sidebar.collapsed .gs-expand-btn {
+  display: flex;
+}
+
+.gs-brand {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 6px 24px;
+  transition: all 0.3s;
+}
+.gs-brand .logo-icon {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: #fff;
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 4px rgba(255,255,255,0.2), 0 0 12px rgba(255,255,255,0.1);
+}
+.gs-brand .logo-icon > i { position: relative; z-index: 2; filter: drop-shadow(0 0 4px rgba(255,255,255,0.4)); }
+.gs-brand-text { font-size: 16px; font-weight: 700; color: var(--text-primary); flex: 1; white-space: nowrap; transition: opacity 0.2s; }
+.gs-brand-actions { display: flex; gap: 4px; }
+.gs-brand-actions button {
+  width: 30px; height: 30px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: var(--text-muted);
+  transition: all 0.2s;
+}
+.gs-brand-actions button:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+
+.gs-search {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.gs-search:hover { border-color: var(--border-light); }
+.gs-search i { font-size: 15px; color: var(--text-muted); }
+.gs-search span { font-size: 13px; color: var(--text-placeholder); flex: 1; }
+.gs-search kbd {
+  font-family: var(--font-sans); font-size: 11px;
+  color: var(--text-muted); background: rgba(255,255,255,0.04);
+  padding: 2px 6px; border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.gs-section-label {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  padding: 0 8px; margin-bottom: 8px;
+}
+
+.gs-nav-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px; font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 2px;
+}
+.gs-nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+.gs-nav-item.active {
+  background: #7B61FF;
+  color: #fff;
+}
+.gs-nav-item i:first-child { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+.gs-nav-item span { white-space: nowrap; transition: opacity 0.2s; }
+
+.gs-divider { height: 1px; background: var(--border-subtle); margin: 16px 8px; }
+
+.gs-pinned { flex: 1; overflow-y: auto; }
+.gs-pin-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gs-pin-item:hover { background: rgba(255,255,255,0.03); color: var(--text-secondary); }
+.gs-pin-item i { font-size: 14px; flex-shrink: 0; }
+
+.gs-bottom {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 8px;
+}
+.gs-bottom .gs-nav-item { font-size: 13px; padding: 10px 14px; }
+
+/* Main content area */
+.main-content { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
+
+/* ═══════════════════════════════════════════════════════════
+   4. PAGE SYSTEM
+   ═══════════════════════════════════════════════════════════ */
+.page { display: none !important; flex: 1; min-height: 0; position: relative; z-index: 1; }
+.page.active { display: flex !important; flex-direction: column; }
+
+/* ═══════════════════════════════════════════════════════════
+   5. HOME PAGE
+   ═══════════════════════════════════════════════════════════ */
+.home {
+  position: relative;
+  align-items: center;
+  padding: 60px 40px;
+  overflow: auto;
+}
+/* Background orbs */
+.home::before {
+  content: '';
+  position: absolute; top: -200px; left: -100px;
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.home::after {
+  content: '';
+  position: absolute; top: 100px; right: -150px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+/* Grid overlay */
+.home-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 20%, transparent 100%);
+  pointer-events: none;
+}
+
+.home-orb-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px; height: 160px;
+  font-family: var(--font-sans);
+  font-size: 1em;
+  font-weight: 300;
+  color: white;
+  border-radius: 50%;
+  background-color: transparent;
+  user-select: none;
+  margin-bottom: 40px;
+}
+.home-orb {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; aspect-ratio: 1/1;
+  border-radius: 50%;
+  overflow: hidden;
+  z-index: 0;
+  box-shadow:
+    0 0 60px rgba(139,92,246,0.3),
+    0 0 120px rgba(100,50,200,0.15),
+    0 20px 40px rgba(0,0,0,0.6);
+}
+/* Color layer 1 */
+.home-orb-bg {
+  position: absolute;
+  width: 200%; height: 200%;
+  top: -50%; left: -50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(200,120,255,0.8) 0%, rgba(160,80,240,0.3) 20%, transparent 40%),
+    radial-gradient(circle at 70% 25%, rgba(173,95,255,0.9) 0%, transparent 40%),
+    radial-gradient(circle at 25% 65%, rgba(214,10,71,0.7) 0%, transparent 40%),
+    radial-gradient(circle at 75% 70%, rgba(0,180,255,0.5) 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, rgba(71,30,236,0.95) 0%, transparent 55%),
+    radial-gradient(circle at 40% 80%, rgba(49,30,128,1) 0%, transparent 50%);
+  animation: orb-flow 10s ease-in-out infinite;
+}
+/* Color layer 2 */
+.home-orb-bg2 {
+  position: absolute;
+  width: 200%; height: 200%;
+  top: -50%; left: -50%;
+  background:
+    radial-gradient(circle at 60% 40%, rgba(214,10,71,0.5) 0%, transparent 35%),
+    radial-gradient(circle at 30% 50%, rgba(173,95,255,0.4) 0%, transparent 40%),
+    radial-gradient(circle at 70% 75%, rgba(120,60,220,0.3) 0%, transparent 30%);
+  animation: orb-flow2 8s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+/* Dark edges for 3D depth */
+.home-orb::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, transparent 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.7) 85%, rgba(0,0,0,0.9) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+/* Top-left specular highlight */
+.home-orb::after {
+  content: '';
+  position: absolute;
+  top: 5%; left: 12%;
+  width: 45%; height: 40%;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 45% 45%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.05) 60%, transparent 85%);
+  transform: rotate(-25deg);
+  z-index: 3;
+  pointer-events: none;
+  filter: blur(2px);
+}
+@keyframes orb-flow {
+  0%   { transform: translate(0%, 0%) rotate(0deg) scale(1); }
+  25%  { transform: translate(5%, -8%) rotate(45deg) scale(1.02); }
+  50%  { transform: translate(-5%, 5%) rotate(120deg) scale(0.98); }
+  75%  { transform: translate(8%, 3%) rotate(200deg) scale(1.03); }
+  100% { transform: translate(0%, 0%) rotate(360deg) scale(1); }
+}
+@keyframes orb-flow2 {
+  0%   { transform: translate(0%, 0%) rotate(0deg); }
+  33%  { transform: translate(-8%, 6%) rotate(-60deg); }
+  66%  { transform: translate(6%, -5%) rotate(-150deg); }
+  100% { transform: translate(0%, 0%) rotate(-360deg); }
+}
+.home-orb-letter {
+  display: inline-block;
+  opacity: 1;
+  z-index: 4;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(255,255,255,0.4);
+}
+@keyframes orb-letter-unused {
+  0%, 100% { opacity: 0.4; transform: translateY(0); }
+  20% { opacity: 1; transform: scale(1.15); }
+  40% { opacity: 0.7; transform: translateY(0); }
+}
+
+.home-title {
+  font-size: 40px; font-weight: 800;
+  text-align: center; line-height: 1.15;
+  margin-bottom: 20px;
+  letter-spacing: -1px;
+  position: relative;
+}
+.home-title .gradient-text {
+  background: linear-gradient(135deg, #7B61FF 0%, #7B61FF 40%, #00E5FF 80%, #7B61FF 100%);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientFlow 6s ease infinite;
+}
+.home-subtitle {
+  font-size: 14px; color: var(--text-primary);
+  text-align: center; max-width: 640px;
+  margin-bottom: 200px; line-height: 1.7;
+  opacity: 0.75;
+}
+
+/* Agent Cards */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes borderSpin {
+  to { --border-angle: 360deg; }
+}
+
+.agent-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 1300px; width: 100%;
+  position: relative;
+  margin-bottom: 64px;
+}
+
+.agent-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 2px;
+  cursor: pointer;
+  background: var(--card-bg);
+  animation: borderSpin 4s linear infinite;
+}
+.agent-card[data-agent="investor"] {
+  --card-c1: #818CF8; --card-c2: #6366F1;
+  --card-glow1: hsla(235,85%,60%,0.5); --card-glow2: hsla(250,80%,72%,0.4); --card-glow3: hsla(260,90%,58%,0.45);
+  --card-bg: hsla(240,10%,5%,1);
+}
+.agent-card[data-agent="enterprise"] {
+  --card-c1: #22D3EE; --card-c2: #8B5CF6;
+  --card-glow1: hsla(190,85%,50%,0.5); --card-glow2: hsla(210,80%,65%,0.4); --card-glow3: hsla(260,85%,60%,0.45);
+  --card-bg: hsla(240,10%,5%,1);
+}
+.agent-card[data-agent="risk"] {
+  --card-c1: #F472B6; --card-c2: #A855F7;
+  --card-glow1: hsla(330,80%,60%,0.5); --card-glow2: hsla(300,70%,65%,0.4); --card-glow3: hsla(270,85%,58%,0.45);
+  --card-bg: hsla(240,10%,5%,1);
+}
+.agent-card:hover {
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 25%, var(--card-c1) 37%, var(--card-c2) 50%, var(--card-c1) 63%, transparent 75%
+  );
+}
+
+.card-inner {
+  padding: 24px 24px 20px;
+  border-radius: calc(1rem - 2px);
+  display: flex; flex-direction: column;
+  height: 100%;
+  background-color: hsla(260, 15%, 9%, 1);
+  background-image:
+    radial-gradient(at 88% 40%, hsla(260,15%,9%,1) 0px, transparent 85%),
+    radial-gradient(at 49% 30%, hsla(260,15%,9%,1) 0px, transparent 85%),
+    radial-gradient(at 14% 26%, hsla(260,15%,9%,1) 0px, transparent 85%),
+    radial-gradient(at 0% 64%, var(--card-glow1) 0px, transparent 85%),
+    radial-gradient(at 41% 94%, var(--card-glow2) 0px, transparent 85%),
+    radial-gradient(at 100% 99%, var(--card-glow3) 0px, transparent 85%);
+}
+
+/* Card stars */
+.card-inner { position: relative; overflow: hidden; }
+.card-stars, .card-stars2, .card-stars3 {
+  position: absolute; top: 0; left: 0;
+  width: 2px; height: 2px; border-radius: 50%;
+  z-index: 0;
+  animation: card-twinkle 1s linear alternate infinite;
+}
+.card-stars {
+  box-shadow:
+    40px 30px #fff, 120px 60px #fff, 200px 20px #fff,
+    80px 110px #fff, 300px 50px #fff, 180px 130px #fff,
+    350px 80px #fff, 50px 170px #fff, 260px 140px #fff,
+    150px 190px #fff, 320px 170px #fff, 90px 60px #fff;
+  animation-delay: 0s;
+}
+.card-stars2 {
+  box-shadow:
+    60px 45px #fff, 140px 90px #fff, 230px 35px #fff,
+    100px 150px #fff, 280px 100px #fff, 170px 180px #fff,
+    30px 120px #fff, 310px 30px #fff, 200px 160px #fff;
+  animation-delay: 0.4s;
+}
+.card-stars3 {
+  box-shadow:
+    20px 80px #fff, 110px 160px #fff, 250px 70px #fff,
+    340px 130px #fff, 70px 190px #fff, 190px 50px #fff,
+    290px 180px #fff, 160px 100px #fff;
+  animation-delay: 0.8s;
+}
+@keyframes card-twinkle {
+  0% { opacity: 0; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+/* Shooting star */
+.card-inner::before {
+  content: '';
+  position: absolute;
+  top: 10%; right: -20%;
+  width: 80px; height: 1px;
+  background: linear-gradient(90deg, #fff, transparent);
+  transform: rotate(-35deg);
+  opacity: 0;
+  z-index: 0;
+  animation: card-shoot 6s ease-in-out infinite;
+}
+.agent-card:nth-child(2) .card-inner::before { animation-delay: 2s; }
+.agent-card:nth-child(3) .card-inner::before { animation-delay: 4s; }
+@keyframes card-shoot {
+  0% { transform: rotate(-35deg) translateX(0); opacity: 0; }
+  5% { opacity: 1; }
+  25% { transform: rotate(-35deg) translateX(-400px); opacity: 0; }
+  100% { opacity: 0; }
+}
+/* Hover glow orb */
+.card-inner::after {
+  content: '';
+  position: absolute;
+  top: -30%; left: -30%;
+  width: 8em; height: 8em;
+  border-radius: 50%;
+  background: var(--card-c1);
+  box-shadow: 0 0 80px var(--card-c1), 0 0 120px var(--card-c2);
+  opacity: 0;
+  z-index: 0;
+  transition: opacity 0.5s;
+  filter: blur(20px);
+}
+.agent-card:hover .card-inner::after { opacity: 0.15; }
+/* Ensure card content above effects */
+.agent-card .card-icon, .agent-card .card-title, .agent-card .card-desc,
+.agent-card .card-features, .agent-card .card-enter { position: relative; z-index: 1; }
+
+.agent-card .card-icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; color: #fff;
+  margin-bottom: 20px;
+  position: relative;
+  box-shadow: inset 0 0 4px rgba(255,255,255,0.2), 0 0 12px rgba(255,255,255,0.08);
+  --orbit-c1: #7B61FF; --orbit-c2: #7B61FF; --orbit-c3: #A78BFA; --orbit-c4: #60A5FA;
+}
+.agent-card .card-icon > i { position: relative; z-index: 2; filter: drop-shadow(0 0 6px rgba(255,255,255,0.3)); }
+.agent-card[data-agent="investor"] .card-icon { --orbit-c1: #7B61FF; --orbit-c2: #7B61FF; --orbit-c3: #A78BFA; --orbit-c4: #60A5FA; }
+.agent-card[data-agent="enterprise"] .card-icon { --orbit-c1: #00E5FF; --orbit-c2: #06B6D4; --orbit-c3: #67E8F9; --orbit-c4: #22D3EE; }
+.agent-card[data-agent="risk"] .card-icon { --orbit-c1: #FF4D6D; --orbit-c2: #FF8C42; --orbit-c3: #FBBF24; --orbit-c4: #FB923C; }
+/* Orbits paused by default, play on card hover */
+.agent-card .card-icon .orbit { animation-play-state: paused; }
+.agent-card:hover .card-icon .orbit { animation-play-state: running; }
+
+.agent-card .card-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.agent-card .card-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 16px; min-height: 0; }
+.agent-card .card-features {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 0;
+}
+.agent-card .feature-tag {
+  padding: 5px 14px;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 100px;
+  font-size: 12px; color: rgba(255,255,255,0.8);
+}
+.agent-card .card-enter {
+  display: none;
+}
+.agent-card[data-agent="investor"] .card-enter { color: var(--accent-blue); }
+.agent-card[data-agent="enterprise"] .card-enter { color: var(--accent-cyan); }
+.agent-card[data-agent="risk"] .card-enter { color: var(--accent-red); }
+.agent-card:hover .card-enter { gap: 14px; }
+
+/* Stats Bar */
+.stats-bar {
+  display: none;
+}
+.stat-item { text-align: center; }
+.stat-value {
+  font-size: 28px; font-weight: 700;
+  font-family: var(--font-mono);
+  color: #7B61FF;
+}
+.stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+/* ═══════════════════════════════════════════════════════════
+   6. AGENT PAGE - THREE COLUMN LAYOUT
+   ═══════════════════════════════════════════════════════════ */
+.agent-layout {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Left Sidebar */
+.agent-sidebar {
+  width: var(--sidebar-w);
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg-app);
+  display: flex; flex-direction: column;
+  padding: 24px 16px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.agent-profile {
+  text-align: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 20px;
+}
+.agent-profile .avatar {
+  width: 64px; height: 64px;
+  border-radius: var(--radius-md);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px; color: #fff;
+  margin-bottom: 12px;
+}
+.agent-profile .name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.agent-profile .role { font-size: 12px; color: var(--text-muted); }
+
+.sidebar-section-title {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 12px; padding: 0 8px;
+}
+
+.func-card {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.func-card:hover { background: rgba(255,255,255,0.03); border-color: var(--border-subtle); }
+.func-card.active { background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.2); }
+.func-card .func-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.04);
+}
+.func-card .func-info { flex: 1; min-width: 0; }
+.func-card .func-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.func-card .func-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+/* Conversation History */
+.conv-list { margin-top: 16px; }
+.conv-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 8px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.conv-item:hover { background: rgba(255,255,255,0.03); color: var(--text-primary); }
+.conv-item.active { background: rgba(139,92,246,0.08); color: var(--text-primary); }
+.conv-item i { flex-shrink: 0; font-size: 14px; color: var(--text-muted); }
+
+/* Center Chat Area */
+.chat-area {
+  flex: 1; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(16,14,36,0.92) 0%, rgba(8,12,28,0.8) 50%, rgba(4,6,14,0.95) 100%);
+  min-width: 0;
+}
+.chat-header {
+  height: 56px;
+  padding: 0 24px 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+.chat-back-btn {
+  width: 34px; height: 34px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--text-secondary);
+  transition: all 0.2s;
+  margin-right: 8px;
+}
+.chat-back-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+.chat-header-left { display: flex; align-items: center; gap: 10px; }
+.chat-header-left .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s infinite; }
+.chat-header-left span { font-size: 14px; font-weight: 600; }
+.chat-header-right { display: flex; gap: 4px; }
+.chat-header-right button {
+  width: 34px; height: 34px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: var(--text-muted);
+  transition: all 0.2s;
+}
+.chat-header-right button:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+.chat-header-right button[title="导出PDF报告"]:hover { color: #FF4D6D; }
+.chat-header-right button[title="导出PDF报告"].exporting { pointer-events:none; opacity:0.5; animation: pulse-glow 1s infinite; }
+@keyframes pulse-glow { 0%,100%{opacity:0.5} 50%{opacity:0.8} }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* Welcome Screen (empty state) */
+.welcome-screen {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 24px;
+  min-height: 0;
+}
+
+/* Orbital Loader Icon */
+.welcome-icon {
+  --loader-size: 90px;
+  --light-size: 2px;
+  position: relative;
+  width: var(--loader-size);
+  height: var(--loader-size);
+  border-radius: 50%;
+  box-shadow: inset 0 0 6px rgba(255,255,255,0.25), 0 0 20px rgba(255,255,255,0.15);
+  margin-bottom: 32px;
+  display: flex; align-items: center; justify-content: center;
+}
+.welcome-icon > i {
+  font-size: 32px; color: #fff;
+  position: relative; z-index: 2;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.4));
+}
+.logo-icon { --orbit-c1: #7B61FF; --orbit-c2: #FF1744; --orbit-c3: #FFFF8D; --orbit-c4: #B2FF59; }
+.orbit {
+  display: block;
+  position: absolute;
+  border-radius: 50%;
+  inset: 0;
+  opacity: 0.8;
+  mix-blend-mode: screen;
+  filter: brightness(120%);
+  animation: orbitSpin 2s linear infinite;
+}
+.orbit:nth-child(2) {
+  box-shadow: inset 1px 0 0 1px var(--orbit-c1), var(--light-size) 0 0 var(--light-size) var(--orbit-c1);
+  animation-direction: reverse;
+  transform-origin: 49.6% 49.8%;
+}
+.orbit:nth-child(3) {
+  box-shadow: inset 1px 0 0 1px var(--orbit-c2), var(--light-size) 0 0 var(--light-size) var(--orbit-c2);
+  transform-origin: 49.5% 49.8%;
+}
+.orbit:nth-child(4) {
+  box-shadow: inset 1px 0 0 1px var(--orbit-c3), 0 var(--light-size) 0 var(--light-size) var(--orbit-c3);
+  transform-origin: 49.8% 49.8%;
+}
+.orbit:nth-child(5) {
+  box-shadow: inset 1px 0 0 1px var(--orbit-c4), 0 var(--light-size) 0 var(--light-size) var(--orbit-c4);
+  transform-origin: 49.7% 49.7%;
+}
+/* Per-agent orbit colors */
+.welcome-icon[data-agent="investor"] { --orbit-c1: #7B61FF; --orbit-c2: #7B61FF; --orbit-c3: #A78BFA; --orbit-c4: #60A5FA; }
+.welcome-icon[data-agent="enterprise"] { --orbit-c1: #00E5FF; --orbit-c2: #06B6D4; --orbit-c3: #67E8F9; --orbit-c4: #22D3EE; }
+.welcome-icon[data-agent="risk"] { --orbit-c1: #FF4D6D; --orbit-c2: #FF8C42; --orbit-c3: #FBBF24; --orbit-c4: #FB923C; }
+@keyframes orbitSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+.welcome-title {
+  font-size: 24px; font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+.welcome-desc {
+  font-size: 15px; color: var(--text-muted);
+  margin-bottom: 40px;
+}
+.welcome-caps {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  max-width: 560px; width: 100%;
+}
+.welcome-cap {
+  padding: 24px 22px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+.welcome-cap:hover {
+  border-color: var(--border-active);
+  background: var(--bg-card-hover);
+  transform: translateY(-2px);
+}
+.welcome-cap > i {
+  font-size: 22px;
+  color: var(--accent-blue);
+  margin-bottom: 14px;
+  display: block;
+}
+.welcome-cap-name {
+  font-size: 15px; font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-primary);
+}
+.welcome-cap-desc {
+  font-size: 13px; color: var(--text-muted); line-height: 1.5;
+}
+
+/* Message Bubbles */
+.msg { display: flex; gap: 12px; max-width: 85%; animation: msgIn 0.3s ease; }
+.msg.user { flex-direction: row-reverse; margin-left: auto; }
+.msg-avatar {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #fff;
+  flex-shrink: 0;
+}
+.msg.user .msg-avatar { background: var(--gradient-primary); }
+.msg.ai .msg-avatar { background: var(--bg-surface); border: 1px solid var(--border-light); color: var(--accent-cyan); }
+
+.msg-content { min-width: 0; }
+.msg-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; display: flex; gap: 8px; }
+.msg.user .msg-meta { justify-content: flex-end; }
+.msg-bubble {
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  font-size: 14px; line-height: 1.7;
+}
+.msg.user .msg-bubble {
+  background: rgba(139,92,246,0.12);
+  border: 1px solid rgba(139,92,246,0.2);
+}
+.msg.ai .msg-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Structured AI Response */
+.ai-section {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border-left: 3px solid;
+  background: rgba(0,0,0,0.2);
+}
+.ai-section.conclusion { border-color: var(--accent-blue); }
+.ai-section.chart { border-color: var(--accent-cyan); }
+.ai-section.risk { border-color: var(--accent-red); }
+.ai-section.info { border-color: var(--accent-purple); }
+.ai-section-title {
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.ai-section.conclusion .ai-section-title { color: var(--accent-blue); }
+.ai-section.chart .ai-section-title { color: var(--accent-cyan); }
+.ai-section.risk .ai-section-title { color: var(--accent-red); }
+.ai-section.info .ai-section-title { color: var(--accent-purple); }
+.ai-section p { font-size: 13px; color: var(--text-secondary); line-height: 1.7; }
+
+/* Streaming cursor */
+.stream-cursor {
+  color: var(--accent-blue);
+  animation: blink 0.8s step-end infinite;
+  font-size: 14px;
+  margin-left: 1px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.stream-text { white-space: pre-wrap; word-break: break-word; }
+.stream-text strong { color: var(--text-primary); font-weight: 600; }
+.stream-text h2, .stream-text h3, .stream-text h4 { color: var(--text-primary); }
+.stream-text pre { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; margin: 8px 0; overflow-x: auto; }
+.stream-text code { font-family: var(--font-mono); font-size: 12px; }
+
+/* AI Actions Bar */
+.msg-actions {
+  display: flex; align-items: center; gap: 2px;
+  margin-top: 10px;
+}
+.msg-action {
+  width: 30px; height: 30px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--text-muted);
+  transition: all 0.2s;
+}
+.msg-action:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+.msg-tokens {
+  margin-left: auto;
+  font-size: 11px; color: var(--text-muted);
+  font-family: var(--font-mono);
+  background: rgba(255,255,255,0.03);
+  padding: 2px 8px; border-radius: 4px;
+}
+
+/* Thinking indicator */
+.thinking {
+  padding: 20px 0;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.thinking-header {
+  display: flex; align-items: center; gap: 10px;
+}
+.thinking-spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(139,92,246,0.2);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.thinking-label {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+}
+.thinking-steps {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-left: 4px;
+}
+.thinking-step {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--text-muted);
+  opacity: 0; transform: translateY(6px);
+  animation: stepIn 0.3s ease forwards;
+}
+.thinking-step i {
+  font-size: 14px; color: var(--accent-blue);
+  width: 18px; text-align: center;
+}
+.thinking-step.done i { color: var(--accent-green); }
+.thinking-step:nth-child(1) { animation-delay: 0s; }
+.thinking-step:nth-child(2) { animation-delay: 1.5s; }
+.thinking-step:nth-child(3) { animation-delay: 3s; }
+.thinking-step:nth-child(4) { animation-delay: 4.5s; }
+@keyframes stepIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Chat Input */
+.chat-input-wrap {
+  padding: 16px 24px 24px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.chat-input-box {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  transition: border-color 0.3s;
+  width: 100%;
+  max-width: 800px;
+  position: relative;
+}
+.chat-input-box::before {
+  content: none;
+}
+.chat-input-box:focus-within { border-color: var(--border-active); box-shadow: var(--glow-blue); }
+.chat-input-box textarea {
+  flex: 1;
+  background: none; border: none; outline: none;
+  resize: none;
+  font-size: 14px; line-height: 1.5;
+  color: var(--text-primary);
+  max-height: 120px;
+  min-height: 40px;
+}
+.chat-input-box textarea::placeholder { color: var(--text-placeholder); }
+.upload-btn {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--text-muted);
+  transition: all 0.2s;
+  flex-shrink: 0;
+  position: relative;
+}
+.upload-btn:hover { color: var(--accent-blue); background: rgba(139,92,246,0.1); }
+.upload-btn input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.quick-actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  width: 100%; max-width: 800px;
+  padding: 0 0 10px;
+}
+.quick-action {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px;
+  font-size: 12px; color: var(--text-secondary);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.quick-action i { font-size: 14px; color: var(--accent-blue); }
+.quick-action:hover {
+  background: rgba(139,92,246,0.08);
+  border-color: rgba(139,92,246,0.25);
+  color: var(--text-primary);
+}
+.file-preview-area {
+  display: none;
+  flex-wrap: wrap; gap: 8px;
+  width: 100%;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.file-preview-area.has-files { display: flex; }
+.file-tag {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(139,92,246,0.15);
+  border: 1px solid rgba(139,92,246,0.35);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px; color: #e0e4ec;
+  max-width: 280px;
+  animation: fileTagIn 0.25s ease-out;
+}
+@keyframes fileTagIn { from { opacity:0; transform: translateY(6px) scale(0.95); } to { opacity:1; transform: none; } }
+.file-tag i { font-size: 16px; color: var(--accent-blue); flex-shrink: 0; }
+.file-tag-info { overflow: hidden; }
+.file-tag-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 180px; font-weight: 500; color: #e8ecf2; }
+.file-tag-size { font-size: 11px; color: #8e9ab0; }
+.file-tag-remove {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--text-muted);
+  transition: all 0.15s; flex-shrink: 0; margin-left: 2px;
+}
+.file-tag-remove:hover { background: rgba(255,77,109,0.15); color: var(--accent-red); }
+.file-tag.parsing { opacity: 0.6; }
+.file-tag.parsing::after {
+  content: ''; width: 12px; height: 12px;
+  border: 2px solid rgba(139,92,246,0.3); border-top-color: var(--accent-blue);
+  border-radius: 50%; animation: spin 0.6s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.send-btn {
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--gradient-primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #fff;
+  transition: all 0.3s;
+  flex-shrink: 0;
+  box-shadow: var(--glow-blue);
+}
+.send-btn:hover { transform: scale(1.05); }
+.send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+.chat-input-hint {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text-muted);
+  margin-top: 8px; padding: 0 4px;
+  width: 100%; max-width: 800px;
+}
+.input-selectors {
+  display: flex; gap: 16px; margin-bottom: 12px;
+  width: 100%; max-width: 800px;
+}
+.input-select-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.input-select-group label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.input-select-group select {
+  padding: 8px 32px 8px 12px;
+  font-size: 13px; font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7a90' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.2s;
+}
+.input-select-group select:hover { border-color: rgba(167,139,250,0.4); }
+.input-select-group select:focus { border-color: var(--accent-blue); box-shadow: 0 0 0 2px rgba(167,139,250,0.15); }
+.input-select-group select option { background: var(--bg-card); color: var(--text-primary); }
+
+/* Right Visualization Panel */
+.viz-panel {
+  width: 0;
+  border-left: none;
+  background: rgba(18, 18, 28, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex; flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+.viz-panel.visible {
+  width: var(--viz-w);
+  border-left: 1px solid var(--border-subtle);
+  overflow-y: auto;
+}
+.viz-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.viz-header h3 { font-size: 14px; font-weight: 700; }
+.viz-export-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 14px;
+  font-size: 12px; font-weight: 600;
+  color: #e8edf5;
+  background: rgba(139,92,246,0.15);
+  border: 1px solid rgba(139,92,246,0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.viz-export-btn:hover { background: rgba(139,92,246,0.3); border-color: rgba(139,92,246,0.5); color: #fff; }
+.viz-export-btn:active { transform: scale(0.96); }
+.viz-export-btn.exporting { pointer-events: none; opacity: 0.6; }
+.viz-tabs {
+  display: flex; gap: 2px;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.viz-tab {
+  padding: 8px 14px;
+  font-size: 12px; font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.viz-tab:hover { color: var(--text-secondary); }
+.viz-tab.active { color: var(--accent-blue); border-color: var(--accent-blue); }
+.viz-content {
+  flex: 1; padding: 20px;
+  overflow-y: auto;
+}
+.viz-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; min-height: 300px; color: var(--text-muted);
+  text-align: center; gap: 12px;
+}
+.viz-placeholder i { font-size: 48px; opacity: 0.3; }
+.viz-placeholder p { font-size: 13px; }
+.viz-tab-pane { display: none; }
+.viz-tab-pane.active { display: block; }
+
+/* Chart containers */
+.chart-box {
+  background: rgba(6,6,12,0.6);
+  border: 1px solid rgba(139,92,246,0.1);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.chart-box .chart-title {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+.chart-container { width: 100%; height: 220px; }
+
+/* Metric cards */
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.metric-card {
+  padding: 16px;
+  background: rgba(6,6,12,0.6);
+  border: 1px solid rgba(139,92,246,0.1);
+  border-radius: var(--radius-sm);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.4), transparent);
+}
+.metric-card .metric-label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+.metric-card .metric-value { font-size: 24px; font-weight: 800; font-family: var(--font-mono); color: #fff !important; text-shadow: 0 0 24px rgba(167,139,250,0.5), 0 0 8px rgba(255,255,255,0.2); }
+.metric-card .metric-change { font-size: 11px; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+.metric-card .metric-change.up { color: var(--accent-green); }
+.metric-card .metric-change.down { color: var(--accent-red); }
+
+/* Risk flags */
+.risk-list { display: flex; flex-direction: column; gap: 8px; }
+.risk-item {
+  padding: 12px 14px;
+  background: rgba(0,0,0,0.2);
+  border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-secondary); line-height: 1.6;
+  display: flex; align-items: flex-start; gap: 10px;
+  border-left: 3px solid;
+}
+.risk-item.high { border-color: var(--accent-red); }
+.risk-item.medium { border-color: var(--accent-yellow); }
+.risk-item.low { border-color: var(--accent-green); }
+
+/* Slider controls */
+.slider-group { margin-bottom: 16px; }
+.slider-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.slider-row label { font-size: 12px; color: var(--text-secondary); width: 80px; flex-shrink: 0; }
+.slider-row input[type="range"] {
+  flex: 1; -webkit-appearance: none;
+  height: 4px; border-radius: 2px;
+  background: var(--bg-surface);
+  outline: none;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--accent-blue);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(139,92,246,0.4);
+}
+.slider-row .slider-val {
+  font-size: 12px; font-family: var(--font-mono);
+  color: var(--accent-cyan); width: 50px; text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   7. ANIMATIONS
+   ═══════════════════════════════════════════════════════════ */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@keyframes pulseRing {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.1; transform: scale(1.05); }
+}
+@keyframes gradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(139,92,246,0.1); }
+  50% { box-shadow: 0 0 40px rgba(139,92,246,0.25); }
+}
+
+/* Page transition */
+.page { animation: fadeIn 0.3s ease; }
+
+/* Evidence chain */
+.evidence-chain { margin-top: 12px; }
+.evidence-item {
+  padding: 10px 14px;
+  border-left: 2px dashed var(--border-light);
+  margin-left: 8px;
+  font-size: 12px; color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+.evidence-item .source {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--accent-purple);
+  margin-top: 4px;
+}
+
+/* Compliance checklist */
+.compliance-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+.compliance-item i { font-size: 16px; }
+.compliance-item.pass i { color: var(--accent-green); }
+.compliance-item.fail i { color: var(--accent-red); }
+.compliance-item.warn i { color: var(--accent-yellow); }
+#aurora-canvas {
+  position: absolute; inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: 100%; height: 100%;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     APP SHELL: SIDEBAR + MAIN
+     ═══════════════════════════════════════════════════ -->
+<div class="app-shell">
+
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()"><i class="ri-menu-line"></i></button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- Global Left Sidebar -->
+<aside class="global-sidebar" id="globalSidebar">
+  <button class="gs-expand-btn" onclick="toggleSidebar()" title="展开侧栏"><i class="ri-arrow-right-double-line"></i></button>
+  <div class="gs-brand">
+    <div class="logo-icon">
+      <span class="orbit" style="--light-size:1px"></span>
+      <span class="orbit" style="--light-size:1px"></span>
+      <span class="orbit" style="--light-size:1px"></span>
+      <span class="orbit" style="--light-size:1px"></span>
+      <i class="ri-robot-2-line"></i>
+    </div>
+    <span class="gs-brand-text">智析 MultiAgent</span>
+    <div class="gs-brand-actions">
+      <button onclick="toggleSidebar()" title="收起侧栏"><i class="ri-arrow-left-double-line"></i></button>
+    </div>
+  </div>
+
+  <div class="gs-nav-item active" data-page="home" onclick="navigate('home')">
+    <i class="ri-home-4-line"></i><span>首页</span>
+  </div>
+  <div class="gs-nav-item" data-page="investor" onclick="navigate('investor')">
+    <i class="ri-line-chart-line"></i><span>投资者智能体</span>
+  </div>
+  <div class="gs-nav-item" data-page="enterprise" onclick="navigate('enterprise')">
+    <i class="ri-building-2-line"></i><span>企业智能体</span>
+  </div>
+  <div class="gs-nav-item" data-page="risk" onclick="navigate('risk')">
+    <i class="ri-shield-check-line"></i><span>风险监测智能体</span>
+  </div>
+
+  <div class="gs-divider"></div>
+
+  <div class="gs-section-label">历史对话</div>
+  <div class="gs-history" style="flex:1;overflow-y:auto;">
+    <div class="gs-pin-item"><i class="ri-chat-3-line"></i>安克创新 Q3 财报分析</div>
+    <div class="gs-pin-item"><i class="ri-chat-3-line"></i>赛维时代运营诊断</div>
+    <div class="gs-pin-item"><i class="ri-chat-3-line"></i>跨境电商行业风险评估</div>
+    <div class="gs-pin-item"><i class="ri-chat-3-line"></i>华宝新能源同业对标</div>
+    <div class="gs-pin-item"><i class="ri-chat-3-line"></i>致欧科技政策影响分析</div>
+  </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main-content">
+<canvas id="aurora-canvas"></canvas>
+<canvas id="starfield" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
+
+<!-- ═══════════════════════════════════════════════════
+     HOME PAGE
+     ═══════════════════════════════════════════════════ -->
+<section id="page-home" class="page active home">
+  <div class="home-grid"></div>
+
+  <div class="home-orb-wrapper">
+    <div class="home-orb"><div class="home-orb-bg"></div><div class="home-orb-bg2"></div></div>
+    <span class="home-orb-letter">智</span><span class="home-orb-letter">析</span><span class="home-orb-letter"> </span><span class="home-orb-letter">A</span><span class="home-orb-letter">I</span>
+  </div>
+
+  <h1 class="home-title">
+    <span class="gradient-text">企业运营分析</span><br>
+    <span style="color:var(--text-primary)">与决策支持平台</span>
+  </h1>
+
+  <p class="home-subtitle">
+    基于多智能体架构，融合大模型与规则引擎，为投资者、企业管理者和监管机构<br>
+    提供智能化的财务分析、风险识别与决策支持服务
+  </p>
+
+  <div class="agent-cards">
+    <div class="agent-card" data-agent="investor" onclick="navigate('investor')">
+      <div class="card-inner">
+        <div class="card-stars"></div><div class="card-stars2"></div><div class="card-stars3"></div>
+        <div class="card-icon">
+          <span class="orbit"></span><span class="orbit"></span><span class="orbit"></span><span class="orbit"></span>
+          <i class="ri-line-chart-line"></i>
+        </div>
+        <div class="card-title">投资者智能体</div>
+        <div class="card-desc">解析财报增长质量与现金流风险，进行情景推演和同业对标，生成可溯源的投研简报</div>
+        <div class="card-features">
+          <span class="feature-tag">财报解析</span>
+          <span class="feature-tag">情景推演</span>
+          <span class="feature-tag">同业对标</span>
+          <span class="feature-tag">投研简报</span>
+        </div>
+        <div class="card-enter">进入分析 <i class="ri-arrow-right-line"></i></div>
+      </div>
+    </div>
+
+    <div class="agent-card" data-agent="enterprise" onclick="navigate('enterprise')">
+      <div class="card-inner">
+        <div class="card-stars"></div><div class="card-stars2"></div><div class="card-stars3"></div>
+        <div class="card-icon">
+          <span class="orbit"></span><span class="orbit"></span><span class="orbit"></span><span class="orbit"></span>
+          <i class="ri-building-2-line"></i>
+        </div>
+        <div class="card-title">企业管理智能体</div>
+        <div class="card-desc">行业对标与运营诊断，评估平台规则与政策影响，生成战略优化建议报告</div>
+        <div class="card-features">
+          <span class="feature-tag">运营诊断</span>
+          <span class="feature-tag">政策影响</span>
+          <span class="feature-tag">战略建议</span>
+        </div>
+        <div class="card-enter">进入分析 <i class="ri-arrow-right-line"></i></div>
+      </div>
+    </div>
+
+    <div class="agent-card" data-agent="risk" onclick="navigate('risk')">
+      <div class="card-inner">
+        <div class="card-stars"></div><div class="card-stars2"></div><div class="card-stars3"></div>
+        <div class="card-icon">
+          <span class="orbit"></span><span class="orbit"></span><span class="orbit"></span><span class="orbit"></span>
+          <i class="ri-shield-check-line"></i>
+        </div>
+        <div class="card-title">风险监测智能体</div>
+        <div class="card-desc">识别财务异常与系统性风险传播，自动核查信息披露合规性，构建行业风险图谱</div>
+        <div class="card-features">
+          <span class="feature-tag">风险识别</span>
+          <span class="feature-tag">传播网络</span>
+          <span class="feature-tag">合规核查</span>
+        </div>
+        <div class="card-enter">进入分析 <i class="ri-arrow-right-line"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value">3</div>
+      <div class="stat-label">智能体</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">10+</div>
+      <div class="stat-label">分析维度</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">100%</div>
+      <div class="stat-label">证据可溯源</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">PDF</div>
+      <div class="stat-label">一键导出</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     INVESTOR AGENT PAGE
+     ═══════════════════════════════════════════════════ -->
+<section id="page-investor" class="page">
+  <div class="agent-layout">
+    <main class="chat-area">
+      <div class="chat-header">
+        <button class="chat-back-btn" onclick="navigate('home')" title="返回首页"><i class="ri-arrow-left-line"></i></button>
+        <div class="chat-header-left">
+          <span class="status-dot"></span>
+          <span>投资者智能体</span>
+          <span style="font-size:12px;color:var(--text-muted);font-weight:400">· 增长质量筛查</span>
+        </div>
+        <div class="chat-header-right">
+          <button title="新对话"><i class="ri-add-line"></i></button>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="investor-messages">
+        <!-- Messages will be injected by JS -->
+      </div>
+
+      <div class="chat-input-wrap">
+        <div class="quick-actions" id="investor-quick-actions"></div>
+        <div class="input-selectors">
+          <div class="input-select-group">
+            <label>企业选择</label>
+            <select id="investor-company">
+              <option>安克创新</option>
+              <option>赛维时代</option>
+              <option>华宝新能</option>
+              <option>致欧科技</option>
+              <option>子不语</option>
+              <option>三态股份</option>
+              <option>华凯易佰</option>
+              <option>吉宏股份</option>
+            </select>
+          </div>
+          <div class="input-select-group">
+            <label>年份</label>
+            <select id="investor-year">
+              <option>2025</option>
+              <option>2024</option>
+              <option>2023</option>
+              <option>2022</option>
+            </select>
+          </div>
+          <div class="input-select-group">
+            <label>行业</label>
+            <select id="investor-industry">
+              <option>跨境电商</option>
+              <option>消费电子</option>
+              <option>智能硬件</option>
+              <option>新能源</option>
+              <option>服装纺织</option>
+            </select>
+          </div>
+        </div>
+        <div class="chat-input-box">
+          <div class="file-preview-area" id="investor-files"></div>
+          <button class="upload-btn" title="上传文件（PDF/Excel/CSV/TXT）">
+            <i class="ri-attachment-2"></i>
+            <input type="file" accept=".pdf,.xlsx,.xls,.csv,.txt,.md,.json" multiple onchange="handleFileUpload(this,'investor')">
+          </button>
+          <textarea id="investor-input" rows="1" placeholder="输入公司名称或上传财报，开始智能分析..." oninput="autoResize(this)" onkeydown="handleKey(event,'investor')"></textarea>
+          <button class="send-btn" onclick="sendMessage('investor')"><i class="ri-send-plane-2-fill"></i></button>
+        </div>
+        <div class="chat-input-hint">
+          <span>Enter 发送 · Shift+Enter 换行 · 支持上传 PDF/Excel/CSV</span>
+          <span>AI 可能产生不准确信息，请验证重要数据</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Viz Panel -->
+    <aside class="viz-panel">
+      <div class="viz-header">
+        <h3><i class="ri-dashboard-3-line" style="margin-right:6px;color:var(--accent-blue)"></i>数据分析报告</h3>
+        <button class="viz-export-btn" title="导出PDF报告" onclick="exportPDF(this)"><i class="ri-file-pdf-2-line"></i> 导出报告</button>
+      </div>
+      <div class="viz-content" id="investor-viz-content">
+        <div class="viz-placeholder"><i class="ri-bar-chart-2-line"></i><p>发送消息后，AI 将生成实时分析图表</p></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     ENTERPRISE AGENT PAGE
+     ═══════════════════════════════════════════════════ -->
+<section id="page-enterprise" class="page">
+  <div class="agent-layout">
+    <main class="chat-area">
+      <div class="chat-header">
+        <button class="chat-back-btn" onclick="navigate('home')" title="返回首页"><i class="ri-arrow-left-line"></i></button>
+        <div class="chat-header-left">
+          <span class="status-dot"></span>
+          <span>企业管理智能体</span>
+          <span style="font-size:12px;color:var(--text-muted);font-weight:400">· 运营健康诊断</span>
+        </div>
+        <div class="chat-header-right">
+          <button title="新对话"><i class="ri-add-line"></i></button>
+        </div>
+      </div>
+      <div class="chat-messages" id="enterprise-messages"></div>
+      <div class="chat-input-wrap">
+        <div class="quick-actions" id="enterprise-quick-actions"></div>
+        <div class="chat-input-box">
+          <div class="file-preview-area" id="enterprise-files"></div>
+          <button class="upload-btn" title="上传文件（PDF/Excel/CSV/TXT）">
+            <i class="ri-attachment-2"></i>
+            <input type="file" accept=".pdf,.xlsx,.xls,.csv,.txt,.md,.json" multiple onchange="handleFileUpload(this,'enterprise')">
+          </button>
+          <textarea id="enterprise-input" rows="1" placeholder="输入企业名称，开始运营健康诊断..." oninput="autoResize(this)" onkeydown="handleKey(event,'enterprise')"></textarea>
+          <button class="send-btn" onclick="sendMessage('enterprise')"><i class="ri-send-plane-2-fill"></i></button>
+        </div>
+        <div class="chat-input-hint">
+          <span>Enter 发送 · Shift+Enter 换行 · 支持上传 PDF/Excel/CSV</span>
+          <span>AI 可能产生不准确信息，请验证重要数据</span>
+        </div>
+      </div>
+    </main>
+
+    <aside class="viz-panel">
+      <div class="viz-header">
+        <h3><i class="ri-heart-pulse-line" style="margin-right:6px;color:var(--accent-cyan)"></i>运营分析面板</h3>
+        <button class="viz-export-btn" title="导出PDF报告" onclick="exportPDF(this)"><i class="ri-file-pdf-2-line"></i> 导出报告</button>
+      </div>
+      <div class="viz-content" id="enterprise-viz-content">
+        <div class="viz-placeholder"><i class="ri-heart-pulse-line"></i><p>发送消息后，AI 将生成实时分析图表</p></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     RISK AGENT PAGE
+     ═══════════════════════════════════════════════════ -->
+<section id="page-risk" class="page">
+  <div class="agent-layout">
+    <main class="chat-area">
+      <div class="chat-header">
+        <button class="chat-back-btn" onclick="navigate('home')" title="返回首页"><i class="ri-arrow-left-line"></i></button>
+        <div class="chat-header-left">
+          <span class="status-dot" style="background:var(--accent-red)"></span>
+          <span>风险监测智能体</span>
+          <span style="font-size:12px;color:var(--text-muted);font-weight:400">· 财务异常识别</span>
+        </div>
+        <div class="chat-header-right">
+          <button title="新对话"><i class="ri-add-line"></i></button>
+        </div>
+      </div>
+      <div class="chat-messages" id="risk-messages"></div>
+      <div class="chat-input-wrap">
+        <div class="quick-actions" id="risk-quick-actions"></div>
+        <div class="chat-input-box">
+          <div class="file-preview-area" id="risk-files"></div>
+          <button class="upload-btn" title="上传文件（PDF/Excel/CSV/TXT）">
+            <i class="ri-attachment-2"></i>
+            <input type="file" accept=".pdf,.xlsx,.xls,.csv,.txt,.md,.json" multiple onchange="handleFileUpload(this,'risk')">
+          </button>
+          <textarea id="risk-input" rows="1" placeholder="输入企业名称或行业，开始风险扫描..." oninput="autoResize(this)" onkeydown="handleKey(event,'risk')"></textarea>
+          <button class="send-btn" onclick="sendMessage('risk')"><i class="ri-send-plane-2-fill"></i></button>
+        </div>
+        <div class="chat-input-hint">
+          <span>Enter 发送 · Shift+Enter 换行 · 支持上传 PDF/Excel/CSV</span>
+          <span>AI 可能产生不准确信息，请验证重要数据</span>
+        </div>
+      </div>
+    </main>
+
+    <aside class="viz-panel">
+      <div class="viz-header">
+        <h3><i class="ri-shield-check-line" style="margin-right:6px;color:var(--accent-red)"></i>风险监测面板</h3>
+        <button class="viz-export-btn" title="导出PDF报告" onclick="exportPDF(this)"><i class="ri-file-pdf-2-line"></i> 导出报告</button>
+      </div>
+      <div class="viz-content" id="risk-viz-content">
+        <div class="viz-placeholder"><i class="ri-shield-check-line"></i><p>发送消息后，AI 将生成实时分析图表</p></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+</div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════ -->
+<script>
+/* ═══════════════════════════════════════════════════════════
+   1. STATE & CONFIG
+   ═══════════════════════════════════════════════════════════ */
+const AGENTS = {
+  investor: {
+    name: '投资者智能体',
+    gradient: 'var(--gradient-investor)',
+    color: '#7B61FF',
+    funcs: ['risk-scan','scenario','benchmark','report'],
+    funcLabels: ['增长质量筛查','冲击传导分析','同业对标','投研简报']
+  },
+  enterprise: {
+    name: '企业管理智能体',
+    gradient: 'var(--gradient-enterprise)',
+    color: '#00E5FF',
+    funcs: ['health','policy','strategy'],
+    funcLabels: ['运营健康诊断','政策影响评估','战略优化建议']
+  },
+  risk: {
+    name: '风险监测智能体',
+    gradient: 'var(--gradient-risk)',
+    color: '#FF4D6D',
+    funcs: ['anomaly','propagation','compliance'],
+    funcLabels: ['财务异常识别','风险传播网络','合规自动核查']
+  }
+};
+
+const state = {
+  currentPage: 'home',
+  conversations: {
+    investor: [],
+    enterprise: [],
+    risk: []
+  },
+  charts: {}
+};
+
+/* ═══════════════════════════════════════════════════════════
+   2. NAVIGATION & ROUTING
+   ═══════════════════════════════════════════════════════════ */
+function toggleSidebar() {
+  const sidebar = document.getElementById('globalSidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('open');
+}
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.gs-nav-item').forEach(l => l.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  const navItem = document.querySelector(`.gs-nav-item[data-page="${page}"]`);
+  if (navItem) navItem.classList.add('active');
+  state.currentPage = page;
+  // 点击导航后自动收起侧栏
+  document.getElementById('globalSidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  // 子页面隐藏菜单按钮，首页显示
+  document.getElementById('sidebarToggle').style.display = page === 'home' ? '' : 'none';
+
+  if (page !== 'home') {
+    // Only init charts if viz panel is already visible
+    const pageEl = document.getElementById('page-' + page);
+    const viz = pageEl?.querySelector('.viz-panel.visible');
+    if (viz) {
+      setTimeout(() => initVisibleCharts(page), 200);
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   3. FUNCTION & TAB SWITCHING
+   ═══════════════════════════════════════════════════════════ */
+function showVizPanel(agent) {
+  const page = document.getElementById('page-' + agent);
+  if (!page) return;
+  const viz = page.querySelector('.viz-panel');
+  if (viz && !viz.classList.contains('visible')) {
+    viz.classList.add('visible');
+    // Charts are now rendered dynamically via renderDynamicViz after AI response
+    // Resize any existing dynamic charts after panel transition
+    viz.addEventListener('transitionend', function handler(e) {
+      if (e.propertyName === 'width') {
+        viz.removeEventListener('transitionend', handler);
+        Object.keys(state.charts).forEach(key => {
+          if (key.startsWith('dyn-' + agent)) state.charts[key]?.resize();
+        });
+      }
+    });
+  }
+}
+
+function switchFunc(agent, func, el) {
+  const sidebar = el.closest('.agent-sidebar');
+  sidebar.querySelectorAll('.func-card').forEach(f => f.classList.remove('active'));
+  el.classList.add('active');
+
+  const idx = AGENTS[agent].funcs.indexOf(func);
+  const tabs = document.querySelectorAll(`#${agent}-viz-tabs .viz-tab`);
+  if (tabs[idx]) tabs[idx].click();
+
+  // Update header subtitle
+  const header = el.closest('.agent-layout').querySelector('.chat-header-left');
+  const sub = header.querySelector('span:last-child');
+  sub.textContent = '· ' + AGENTS[agent].funcLabels[idx];
+}
+
+function switchVizTab(agent, idx, el) {
+  const container = document.getElementById(agent + '-viz-content');
+  container.querySelectorAll('.viz-tab-pane').forEach(p => p.classList.remove('active'));
+  container.querySelectorAll(`.viz-tab-pane`)[idx].classList.add('active');
+
+  el.parentElement.querySelectorAll('.viz-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  // Init charts in newly visible tab, then resize all
+  setTimeout(() => {
+    initVisibleCharts(agent);
+    resizeCharts(agent);
+  }, 50);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   4. CHAT SYSTEM
+   ═══════════════════════════════════════════════════════════ */
+// ═══════════════════════════════════════════════════════════
+// FILE UPLOAD & PARSING
+// ═══════════════════════════════════════════════════════════
+const pendingFiles = { investor: [], enterprise: [], risk: [] };
+
+// Initialize pdf.js worker
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  const icons = { pdf: 'ri-file-pdf-2-line', xlsx: 'ri-file-excel-2-line', xls: 'ri-file-excel-2-line', csv: 'ri-file-chart-line', txt: 'ri-file-text-line', md: 'ri-markdown-line', json: 'ri-braces-line' };
+  return icons[ext] || 'ri-file-line';
+}
+
+function renderFileTags(agent) {
+  const area = document.getElementById(agent + '-files');
+  area.innerHTML = '';
+  if (pendingFiles[agent].length === 0) {
+    area.classList.remove('has-files');
+    return;
+  }
+  area.classList.add('has-files');
+  pendingFiles[agent].forEach((f, i) => {
+    const tag = document.createElement('div');
+    tag.className = 'file-tag' + (f.parsing ? ' parsing' : '');
+    tag.innerHTML = `
+      <i class="${getFileIcon(f.name)}"></i>
+      <div class="file-tag-info">
+        <span class="file-tag-name" title="${f.name}">${f.name}</span>
+        <span class="file-tag-size">${formatFileSize(f.size)}${f.parsing ? ' · 解析中...' : ''}</span>
+      </div>
+      ${f.parsing ? '' : `<button class="file-tag-remove" onclick="removeFile('${agent}',${i})"><i class="ri-close-line"></i></button>`}
+    `;
+    area.appendChild(tag);
+  });
+}
+
+function removeFile(agent, index) {
+  pendingFiles[agent].splice(index, 1);
+  renderFileTags(agent);
+}
+
+async function parsePDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(item => item.str).join(' '));
+  }
+  return pages.join('\n\n');
+}
+
+function parseExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const parts = [];
+        wb.SheetNames.forEach(name => {
+          const ws = wb.Sheets[name];
+          const csv = XLSX.utils.sheet_to_csv(ws);
+          parts.push(`[${name}]\n${csv}`);
+        });
+        resolve(parts.join('\n\n'));
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+async function parseFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return await parsePDF(file);
+  if (ext === 'xlsx' || ext === 'xls') return await parseExcel(file);
+  // csv, txt, md, json — all text
+  return await parseText(file);
+}
+
+async function handleFileUpload(inputEl, agent) {
+  const files = Array.from(inputEl.files);
+  if (!files.length) return;
+  inputEl.value = ''; // reset so same file can be re-selected
+
+  for (const file of files) {
+    if (file.size > 10 * 1024 * 1024) {
+      alert('文件 "' + file.name + '" 超过 10MB 限制');
+      continue;
+    }
+    const entry = { name: file.name, size: file.size, content: '', parsing: true };
+    pendingFiles[agent].push(entry);
+    renderFileTags(agent);
+
+    try {
+      entry.content = await parseFile(file);
+      // Truncate very large content to avoid API limits
+      if (entry.content.length > 30000) {
+        entry.content = entry.content.substring(0, 30000) + '\n\n[内容已截断，原文过长]';
+      }
+    } catch(err) {
+      console.error('File parse error:', err);
+      entry.content = '[文件解析失败: ' + err.message + ']';
+    }
+    entry.parsing = false;
+    renderFileTags(agent);
+  }
+}
+
+function getFileContext(agent) {
+  if (!pendingFiles[agent].length) return '';
+  return pendingFiles[agent].map(f =>
+    `\n---\n📎 附件: ${f.name}\n${f.content}\n---`
+  ).join('\n');
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function handleKey(e, agent) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage(agent);
+  }
+}
+
+function getSelectorsContext(agent) {
+  const selectors = document.querySelectorAll(`#page-${agent} .input-select-group select`);
+  if (!selectors.length) return '';
+  const parts = Array.from(selectors).map(s => s.value);
+  return parts.join('，');
+}
+
+async function sendMessage(agent) {
+  const input = document.getElementById(agent + '-input');
+  let text = input.value.trim();
+  const hasFiles = pendingFiles[agent].length > 0;
+  const stillParsing = pendingFiles[agent].some(f => f.parsing);
+  if (!text && !hasFiles) return;
+  if (stillParsing) { alert('文件正在解析中，请稍候...'); return; }
+
+  // Build display text (what user sees in chat)
+  const fileNames = pendingFiles[agent].map(f => f.name);
+  const displayText = fileNames.length
+    ? (text || '请分析以下文件') + '\n📎 ' + fileNames.join('、')
+    : text;
+
+  // Build API query (includes file content)
+  const ctx = getSelectorsContext(agent);
+  const fileCtx = getFileContext(agent);
+  let queryText = ctx ? `[${ctx}] ${text || '请分析以下上传的文件内容'}` : (text || '请分析以下上传的文件内容');
+  if (fileCtx) queryText += fileCtx;
+  queryText += VIZ_PROMPT_SUFFIX;
+
+  // Clear files
+  pendingFiles[agent] = [];
+  renderFileTags(agent);
+
+  const container = document.getElementById(agent + '-messages');
+  const welcome = container.querySelector('.welcome-screen');
+  if (welcome) welcome.remove();
+  const empty = container.querySelector('.chat-empty');
+  if (empty) empty.remove();
+
+  // Show quick actions after first message
+  renderQuickActions(agent);
+
+  appendMessage(container, 'user', displayText, agent);
+  input.value = '';
+  input.style.height = 'auto';
+  container.scrollTop = container.scrollHeight;
+
+  const thinkingEl = showThinking(container);
+
+  if (USE_MOCK) {
+    setTimeout(() => {
+      thinkingEl.remove();
+      const response = getMockResponse(agent);
+      appendMessage(container, 'ai', response.text, agent, response.sections);
+      container.scrollTop = container.scrollHeight;
+      showVizPanel(agent);
+    }, 1200);
+    return;
+  }
+
+  // Real API — streaming mode
+  try {
+    // Create AI message bubble (hidden until first chunk)
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'msg ai';
+    aiDiv.style.display = 'none';
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    aiDiv.innerHTML = `
+      <div class="msg-avatar"><i class="ri-robot-2-line"></i></div>
+      <div class="msg-content">
+        <div class="msg-meta"><span>${AGENTS[agent].name}</span><span>${time}</span></div>
+        <div class="msg-bubble"><span class="stream-text"></span><span class="stream-cursor">▊</span></div>
+      </div>
+    `;
+    container.appendChild(aiDiv);
+
+    const textEl = aiDiv.querySelector('.stream-text');
+    const cursorEl = aiDiv.querySelector('.stream-cursor');
+
+    let finalText = '';
+    let firstChunk = true;
+    try {
+      finalText = await callCozeStream(agent, queryText, (currentText) => {
+        if (firstChunk) {
+          firstChunk = false;
+          thinkingEl.remove();
+          aiDiv.style.display = '';
+        }
+        // Strip viz JSON block during streaming so user doesn't see raw JSON
+        const streamDisplay = currentText.replace(/<!--VIZJSON[\s\S]*?(VIZJSON-->|$)/, '').trim();
+        textEl.innerHTML = renderMarkdown(streamDisplay);
+        container.scrollTop = container.scrollHeight;
+      });
+    } catch(streamErr) {
+      // Fallback to non-stream
+      console.warn('Stream failed, trying non-stream:', streamErr);
+      thinkingEl.remove();
+      aiDiv.style.display = '';
+      const reply = await callCozeAPI(agent, queryText);
+      finalText = reply || '';
+    }
+    // Ensure thinking is removed
+    if (thinkingEl.isConnected) thinkingEl.remove();
+    aiDiv.style.display = '';
+
+    // Remove cursor, finalize — extract viz data from response
+    cursorEl.remove();
+    let vizResult = null;
+    if (finalText) {
+      vizResult = extractVizData(finalText);
+      const displayText = vizResult ? vizResult.cleanText : finalText;
+      textEl.innerHTML = renderMarkdown(displayText);
+    } else {
+      textEl.innerHTML = '<span style="color:var(--text-muted)">未获取到回复，请重试</span>';
+    }
+
+    // Add action bar
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'msg-actions';
+    actionsDiv.innerHTML = `
+      <button class="msg-action" title="复制" onclick="navigator.clipboard.writeText(this.closest('.msg').querySelector('.stream-text').innerText)"><i class="ri-file-copy-line"></i></button>
+      <button class="msg-action" title="重新生成"><i class="ri-refresh-line"></i></button>
+    `;
+    aiDiv.querySelector('.msg-content').appendChild(actionsDiv);
+    container.scrollTop = container.scrollHeight;
+
+    // Show viz panel and render dynamic charts
+    showVizPanel(agent);
+    if (vizResult && vizResult.data) {
+      renderDynamicViz(agent, vizResult.data);
+    }
+
+  } catch (err) {
+    thinkingEl.remove();
+    appendMessage(container, 'ai', '请求出错：' + err.message, agent);
+  }
+}
+
+function appendMessage(container, role, text, agent, sections) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+
+  const avatarIcon = role === 'user' ? 'ri-user-3-fill' : 'ri-robot-2-line';
+  const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+  let sectionsHtml = '';
+  if (sections) {
+    sectionsHtml = sections.map(s => `
+      <div class="ai-section ${s.type}">
+        <div class="ai-section-title"><i class="${s.icon}"></i>${s.title}</div>
+        <p>${s.content}</p>
+      </div>
+    `).join('');
+  }
+
+  const actionsHtml = role === 'ai' ? `
+    <div class="msg-actions">
+      <button class="msg-action" title="重新生成"><i class="ri-refresh-line"></i></button>
+      <button class="msg-action" title="复制"><i class="ri-file-copy-line"></i></button>
+      <button class="msg-action" title="收藏"><i class="ri-bookmark-line"></i></button>
+      <span class="msg-tokens">≈ ${Math.floor(200 + Math.random() * 300)} tokens</span>
+    </div>
+  ` : '';
+
+  div.innerHTML = `
+    <div class="msg-avatar"><i class="${avatarIcon}"></i></div>
+    <div class="msg-content">
+      <div class="msg-meta">
+        <span>${role === 'user' ? '你' : AGENTS[agent].name}</span>
+        <span>${time}</span>
+      </div>
+      <div class="msg-bubble">${text}${sectionsHtml}</div>
+      ${actionsHtml}
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+function showThinking(container) {
+  const div = document.createElement('div');
+  div.className = 'thinking';
+  div.innerHTML = `
+    <div class="thinking-header">
+      <div class="thinking-spinner"></div>
+      <span class="thinking-label">AI 正在分析中</span>
+    </div>
+    <div class="thinking-steps">
+      <div class="thinking-step"><i class="ri-search-line"></i>理解问题意图...</div>
+      <div class="thinking-step"><i class="ri-database-2-line"></i>检索相关数据...</div>
+      <div class="thinking-step"><i class="ri-brain-line"></i>多维度分析推理...</div>
+      <div class="thinking-step"><i class="ri-file-edit-line"></i>生成分析报告...</div>
+    </div>
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  // Auto-mark steps as done
+  const steps = div.querySelectorAll('.thinking-step');
+  [1500, 3000, 4500].forEach((delay, i) => {
+    setTimeout(() => {
+      if (div.isConnected && steps[i]) {
+        steps[i].classList.add('done');
+        steps[i].querySelector('i').className = 'ri-check-line';
+      }
+    }, delay);
+  });
+  return div;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   5. MOCK DATA & API LAYER
+   ═══════════════════════════════════════════════════════════ */
+function getMockResponse(agent) {
+  const responses = {
+    investor: {
+      text: '已完成对该企业的财报解析与增长质量评估，以下是核心发现：',
+      sections: [
+        { type: 'conclusion', icon: 'ri-bar-chart-box-line', title: '分析结论',
+          content: '增长质量评分 <b style="color:var(--accent-blue)">72/100</b>，现金流安全评分 <b style="color:var(--accent-red)">58/100</b>。企业收入增长较快但经营现金流出现明显背离，增长质量需要关注。商业模式标签：<b>DTC品牌型</b>。' },
+        { type: 'chart', icon: 'ri-line-chart-line', title: '关键指标',
+          content: '毛利率 38.5%（↑2.1pp）| 经营现金流/收入 15.2%（↓3.4pp）| 存货周转 92天（↑24天）| 销售费用率 28%（↑3.2pp）' },
+        { type: 'risk', icon: 'ri-alarm-warning-line', title: '风险提示',
+          content: '1. 经营现金流同比下降18%，与收入增长严重背离<br>2. 存货周转天数增至92天，库存积压风险上升<br>3. 销售费用率持续走高，投流ROI需关注' }
+      ]
+    },
+    enterprise: {
+      text: '已完成运营健康度诊断分析，以下是评估结果：',
+      sections: [
+        { type: 'conclusion', icon: 'ri-heart-pulse-line', title: '诊断结论',
+          content: '运营健康度指数 EOHI = <b style="color:var(--accent-cyan)">81/100</b>。获客效率（A）良好，履约效率（F）存在改善空间，现金流效率（C）稳健，库存管理（I）需关注。' },
+        { type: 'chart', icon: 'ri-pie-chart-line', title: '分维度评分',
+          content: '获客效率 85 | 履约效率 72 | 现金流效率 88 | 库存管理 76' },
+        { type: 'info', icon: 'ri-lightbulb-line', title: '改进建议',
+          content: '优先级1：优化履约环节，库存周转天数偏高<br>优先级2：调整SKU结构，淘汰低效长尾产品<br>优先级3：探索多平台分销，降低渠道集中风险' }
+      ]
+    },
+    risk: {
+      text: '已完成跨境电商行业风险扫描，以下是监测结果：',
+      sections: [
+        { type: 'risk', icon: 'ri-shield-check-line', title: '风险概览',
+          content: '监测企业 <b>28</b> 家，识别异常 <b style="color:var(--accent-red)">12</b> 家，其中高风险 <b style="color:var(--accent-red)">3</b> 家，中风险 <b style="color:var(--accent-yellow)">5</b> 家，低风险 <b style="color:var(--accent-green)">4</b> 家。系统性风险指数 35（较上月↓2.1）。' },
+        { type: 'conclusion', icon: 'ri-bar-chart-box-line', title: '高风险企业',
+          content: '1. <b>XX科技</b>：增长质量风险（高）— 收入增长25%但现金流下降18%<br>2. <b>YY电商</b>：库存风险（高）— 存货增长52%，周转恶化<br>3. <b>ZZ国际</b>：费用异常（高）— 销售费用率跳升12pp' },
+        { type: 'info', icon: 'ri-mind-map', title: '风险传导',
+          content: '海运费上涨冲击信号已触发，重履约模式企业（海外仓型）受影响最大，建议关注供应链关联度高的企业集群。' }
+      ]
+    }
+  };
+  return responses[agent] || responses.investor;
+}
+
+// === Coze API Configuration ===
+const COZE_PROXY = '/api/coze';
+const BOT_CONFIG = {
+  investor:   { bot_id: '7615579319687577615' },
+  enterprise: { bot_id: '7617827782458179647' },
+  risk:       { bot_id: '7619342160248504335' }
+};
+const USE_MOCK = false;
+const COZE_USER_ID = 'user_' + Date.now();
+
+// Simple Markdown → HTML renderer
+function renderMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:12px">$1</code>')
+    .replace(/^### (.+)$/gm, '<h4 style="font-size:14px;font-weight:600;margin:14px 0 6px;color:var(--text-primary)">$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3 style="font-size:15px;font-weight:700;margin:16px 0 8px;color:var(--text-primary)">$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2 style="font-size:16px;font-weight:700;margin:18px 0 8px;color:var(--text-primary)">$1</h2>')
+    .replace(/^- (.+)$/gm, '<div style="padding-left:16px;position:relative;margin:3px 0"><span style="position:absolute;left:4px;color:var(--text-muted)">·</span>$1</div>')
+    .replace(/^\d+\.\s+(.+)$/gm, (m, p1, offset, str) => {
+      const lines = str.substring(0, offset).split('\n');
+      const num = lines.filter(l => /^\d+\./.test(l)).length + 1;
+      return `<div style="padding-left:20px;position:relative;margin:3px 0"><span style="position:absolute;left:0;color:var(--accent-blue);font-weight:600;font-size:12px">${num}.</span>${p1}</div>`;
+    })
+    .replace(/\n{2,}/g, '<br><br>')
+    .replace(/\n/g, '<br>');
+}
+
+// Stream Coze API response — calls onChunk(text) for each piece, returns full text
+async function callCozeStream(agent, message, onChunk) {
+  const config = BOT_CONFIG[agent];
+  if (!config) throw new Error('Unknown agent: ' + agent);
+
+  const res = await fetch(COZE_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      bot_id: config.bot_id,
+      user: COZE_USER_ID,
+      query: message,
+      stream: true
+    })
+  });
+
+  if (!res.ok) throw new Error('API ' + res.status);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  let currentEvent = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        currentEvent = line.slice(6).trim();
+        continue;
+      }
+      if (!line.startsWith('data:')) continue;
+      const raw = line.slice(5).trim();
+      if (raw === '[DONE]') continue;
+      try {
+        const data = JSON.parse(raw);
+        // Coze v2 SSE: event line + data line (content is delta, need to accumulate)
+        if (currentEvent === 'message') {
+          const msg = data.message || data;
+          if (msg.role === 'assistant' && msg.type === 'answer') {
+            const chunk = msg.content || '';
+            if (chunk) {
+              fullText += chunk;
+              if (onChunk) onChunk(fullText);
+            }
+          }
+        }
+        // Also handle if event is embedded in data
+        if (data.event === 'message') {
+          const msg = data.message;
+          if (msg && msg.role === 'assistant' && msg.type === 'answer') {
+            const chunk = msg.content || '';
+            if (chunk) {
+              fullText += chunk;
+              if (onChunk) onChunk(fullText);
+            }
+          }
+        }
+        currentEvent = '';
+      } catch(e) {}
+    }
+  }
+  return fullText;
+}
+
+// Non-stream fallback
+async function callCozeAPI(agent, message) {
+  const config = BOT_CONFIG[agent];
+  if (!config) return null;
+  try {
+    const res = await fetch(COZE_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_id: config.bot_id, user: COZE_USER_ID, query: message, stream: false })
+    });
+    const data = await res.json();
+    if (data.code === 0 && data.messages) {
+      const answer = data.messages.find(m => m.role === 'assistant' && m.type === 'answer');
+      return answer ? answer.content : null;
+    }
+    return null;
+  } catch(e) { return null; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   6. ECHARTS INITIALIZATION
+   ═══════════════════════════════════════════════════════════ */
+const CHART_THEME = {
+  backgroundColor: 'transparent',
+  textStyle: { fontFamily: 'Inter, sans-serif', color: '#8896ab' },
+  title: { textStyle: { color: '#e8edf5', fontSize: 14 } }
+};
+
+function initCharts(agent) {
+  // Legacy stub — charts are now rendered dynamically via renderDynamicViz
+}
+
+// ═══════════════════════════════════════════════════════════
+// DYNAMIC VIZ: Prompt suffix, parser, renderer
+// ═══════════════════════════════════════════════════════════
+const VIZ_PROMPT_SUFFIX = `
+
+[重要指令] 请直接给出完整的分析报告，不要反问用户、不要说"如需进一步分析请告知"之类的话，直接输出完整结论。
+
+[可视化指令] 请在回复正文之后，额外输出一段JSON数据块用于前端图表渲染。格式必须严格如下，用特殊标记包裹（注意：必须以 <!--VIZJSON 开头，以 VIZJSON--> 结尾）：
+<!--VIZJSON
+{
+  "metrics": [
+    {"label": "指标名称", "value": "数值(含单位)", "change": "+X%或-X%", "trend": "up或down"}
+  ],
+  "gauge": {"value": 0到100的整数, "label": "评分名称"},
+  "barChart": {"title": "柱状图标题", "categories": ["类别1","类别2","类别3"], "values": [数值1,数值2,数值3]},
+  "radarChart": {"title": "雷达图标题", "indicators": ["维度1","维度2","维度3","维度4"], "values": [0到100的数值], "benchmark": [0到100的数值]},
+  "insights": [
+    {"type": "danger或warning或success", "text": "关键发现描述"}
+  ]
+}
+VIZJSON-->
+要求：metrics提供4个核心指标；gauge提供1个综合评分(0-100)；barChart提供1个对比图(3-6个类别)；radarChart提供1个多维评估(4-6个维度)；insights提供3-5条关键发现。所有数值必须基于你的实际分析结果，不要编造。`;
+
+function extractVizData(text) {
+  const match = text.match(/<!--VIZJSON\s*([\s\S]*?)\s*VIZJSON-->/);
+  if (!match) return null;
+  // Remove the viz block from display text
+  const cleanText = text.replace(/<!--VIZJSON[\s\S]*?VIZJSON-->/, '').trim();
+  try {
+    const data = JSON.parse(match[1]);
+    return { data, cleanText };
+  } catch(e) {
+    console.warn('VizJSON parse error:', e);
+    return { data: null, cleanText };
+  }
+}
+
+const AGENT_COLORS = {
+  investor: { c1: '#7B61FF', c2: '#A78BFA', accent: 'var(--accent-blue)' },
+  enterprise: { c1: '#00E5FF', c2: '#7B61FF', accent: 'var(--accent-cyan)' },
+  risk: { c1: '#FF4D6D', c2: '#FF8C42', accent: 'var(--accent-red)' }
+};
+const METRIC_COLORS = ['var(--accent-blue)', 'var(--accent-cyan)', 'var(--accent-green)', 'var(--accent-yellow)', 'var(--accent-red)', 'var(--accent-purple)'];
+const BAR_GRADIENTS = [
+  ['#818CF8','#6366F1'], ['#00E5FF','#22D3EE'], ['#34d399','#10b981'],
+  ['#fde047','#fbbf24'], ['#FF8C42','#FF6B3D'], ['#FF6B8A','#FF4D6D']
+];
+
+function renderDynamicViz(agent, vizData) {
+  const container = document.getElementById(agent + '-viz-content');
+  if (!container) return;
+
+  // Dispose old charts
+  Object.keys(state.charts).forEach(key => {
+    if (key.startsWith('dyn-' + agent)) {
+      state.charts[key]?.dispose();
+      delete state.charts[key];
+    }
+  });
+
+  const colors = AGENT_COLORS[agent];
+  let html = '';
+
+  // 1. Metrics
+  if (vizData.metrics && vizData.metrics.length) {
+    html += '<div class="metric-grid">';
+    vizData.metrics.forEach((m, i) => {
+      const color = METRIC_COLORS[i % METRIC_COLORS.length];
+      const dir = m.trend === 'up' ? 'up' : 'down';
+      const arrow = m.trend === 'up' ? 'ri-arrow-up-s-fill' : 'ri-arrow-down-s-fill';
+      html += `
+        <div class="metric-card">
+          <div class="metric-label">${m.label}</div>
+          <div class="metric-value" style="color:${color}">${m.value}</div>
+          ${m.change ? `<div class="metric-change ${dir}"><i class="${arrow}"></i>${m.change}</div>` : ''}
+        </div>`;
+    });
+    html += '</div>';
+  }
+
+  // 2. Gauge
+  if (vizData.gauge) {
+    const gId = 'dyn-' + agent + '-gauge';
+    html += `<div class="chart-box">
+      <div class="chart-title"><i class="ri-dashboard-3-line"></i>${vizData.gauge.label || '综合评分'}</div>
+      <div class="chart-container" id="${gId}"></div>
+    </div>`;
+  }
+
+  // 3. Bar Chart
+  if (vizData.barChart && vizData.barChart.categories) {
+    const bId = 'dyn-' + agent + '-bar';
+    html += `<div class="chart-box">
+      <div class="chart-title"><i class="ri-bar-chart-line"></i>${vizData.barChart.title || '对比分析'}</div>
+      <div class="chart-container" id="${bId}"></div>
+    </div>`;
+  }
+
+  // 4. Radar Chart
+  if (vizData.radarChart && vizData.radarChart.indicators) {
+    const rId = 'dyn-' + agent + '-radar';
+    html += `<div class="chart-box">
+      <div class="chart-title"><i class="ri-radar-line"></i>${vizData.radarChart.title || '多维评估'}</div>
+      <div class="chart-container" id="${rId}" style="height:280px"></div>
+    </div>`;
+  }
+
+  // 5. Insights
+  if (vizData.insights && vizData.insights.length) {
+    html += '<div class="chart-box"><div class="chart-title"><i class="ri-lightbulb-line"></i>关键发现</div><div class="risk-list">';
+    vizData.insights.forEach(ins => {
+      const level = ins.type === 'danger' ? 'high' : (ins.type === 'warning' ? 'medium' : 'low');
+      html += `<div class="risk-item ${level}">${ins.text}</div>`;
+    });
+    html += '</div></div>';
+  }
+
+  container.innerHTML = html;
+
+  // Init ECharts after DOM update
+  setTimeout(() => {
+    // Gauge
+    if (vizData.gauge) {
+      const gEl = document.getElementById('dyn-' + agent + '-gauge');
+      if (gEl) {
+        const chart = echarts.init(gEl);
+        state.charts['dyn-' + agent + '-gauge'] = chart;
+        chart.setOption(gaugeOption(vizData.gauge.value, vizData.gauge.label || '综合评分', colors.c1, colors.c2));
+      }
+    }
+
+    // Bar
+    if (vizData.barChart && vizData.barChart.categories) {
+      const bEl = document.getElementById('dyn-' + agent + '-bar');
+      if (bEl) {
+        const chart = echarts.init(bEl);
+        state.charts['dyn-' + agent + '-bar'] = chart;
+        const cats = vizData.barChart.categories;
+        const vals = vizData.barChart.values;
+        chart.setOption({
+          tooltip: { ...CHART_TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow' } },
+          grid: { left: 10, right: 15, top: 25, bottom: 5, containLabel: true },
+          xAxis: { type: 'category', data: cats,
+            axisLabel: { ...CHART_AXIS_LABEL, fontSize: 10 }, axisLine: CHART_AXIS_LINE, axisTick: { show: false } },
+          yAxis: { type: 'value', axisLabel: CHART_AXIS_LABEL, splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+          animationDuration: 1200, animationEasing: 'elasticOut',
+          series: [{
+            type: 'bar', barWidth: '45%', itemStyle: { borderRadius: [8,8,0,0] },
+            data: vals.map((v, i) => {
+              const g = BAR_GRADIENTS[i % BAR_GRADIENTS.length];
+              return { value: v, itemStyle: {
+                color: glowGradient(g[0], g[1]), shadowColor: g[1] + '80', shadowBlur: 14, borderRadius: [8,8,0,0]
+              }};
+            }),
+            label: { show: true, position: 'top', color: '#fff', fontSize: 12, fontWeight: 700 }
+          }]
+        });
+      }
+    }
+
+    // Radar
+    if (vizData.radarChart && vizData.radarChart.indicators) {
+      const rEl = document.getElementById('dyn-' + agent + '-radar');
+      if (rEl) {
+        const chart = echarts.init(rEl);
+        state.charts['dyn-' + agent + '-radar'] = chart;
+        const inds = vizData.radarChart.indicators;
+        const vals = vizData.radarChart.values;
+        const bench = vizData.radarChart.benchmark;
+        const seriesData = [
+          { value: vals, name: '分析结果',
+            areaStyle: { color: { type:'radial', x:0.5, y:0.5, r:0.6, colorStops:[
+              {offset:0, color: colors.c1 + '50'},{offset:1, color: colors.c1 + '08'}] } },
+            lineStyle: { color: colors.c1, width: 2, shadowColor: colors.c1 + '80', shadowBlur: 8 },
+            itemStyle: { color: colors.c1, shadowColor: colors.c1, shadowBlur: 6, borderWidth: 2, borderColor: '#fff' },
+            symbol: 'circle', symbolSize: 6 }
+        ];
+        if (bench && bench.length) {
+          seriesData.push({
+            value: bench, name: '行业均值',
+            areaStyle: { color: 'rgba(99,102,241,0.06)' },
+            lineStyle: { color: '#6366F1', type: 'dashed', width: 1 },
+            itemStyle: { color: '#6366F1' }, symbol: 'diamond', symbolSize: 5
+          });
+        }
+        chart.setOption({
+          animationDuration: 1500,
+          radar: {
+            indicator: inds.map(name => ({ name, max: 100 })),
+            shape: 'polygon', splitNumber: 4, radius: '58%', center: ['50%', '45%'],
+            axisName: { color: '#8896ab', fontSize: 10 },
+            splitLine: { lineStyle: { color: 'rgba(139,92,246,0.12)' } },
+            splitArea: { show: true, areaStyle: { color: ['rgba(139,92,246,0.02)','rgba(139,92,246,0.05)','rgba(139,92,246,0.02)','rgba(139,92,246,0.05)'] } },
+            axisLine: { lineStyle: { color: 'rgba(139,92,246,0.15)' } }
+          },
+          series: [{ type: 'radar', data: seriesData }],
+          legend: bench && bench.length ? { bottom: 0, textStyle: { color: '#8896ab', fontSize: 10 } } : undefined
+        });
+      }
+    }
+  }, 100);
+}
+
+// Only init charts that are currently visible (in active tab pane)
+function initVisibleCharts(agent) {
+  const page = document.getElementById('page-' + agent);
+  if (!page) return;
+  const activePane = page.querySelector('.viz-tab-pane.active');
+  if (!activePane) return;
+  // Find chart containers in the active pane
+  const chartEls = activePane.querySelectorAll('.chart-container');
+  const needsInit = Array.from(chartEls).some(el => !state.charts[el.id]);
+  if (needsInit) {
+    initCharts(agent);
+  }
+  // Resize all visible charts
+  chartEls.forEach(el => {
+    if (state.charts[el.id]) state.charts[el.id].resize();
+  });
+}
+
+function resizeCharts(agent) {
+  Object.keys(state.charts).forEach(key => {
+    if (key.startsWith(agent)) {
+      const el = document.getElementById(key);
+      // Only resize if element is visible (offsetParent !== null)
+      if (el && el.offsetParent !== null) {
+        state.charts[key]?.resize();
+      }
+    }
+  });
+}
+
+function createChart(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  // Skip init if container is hidden (display:none parent) - will be inited on tab switch
+  if (el.offsetParent === null) return null;
+  if (state.charts[id]) { state.charts[id].dispose(); }
+  const chart = echarts.init(el);
+  state.charts[id] = chart;
+  return chart;
+}
+
+// --- Shared chart style helpers ---
+const CHART_TOOLTIP = {
+  backgroundColor: 'rgba(10,10,18,0.9)',
+  borderColor: 'rgba(139,92,246,0.3)',
+  borderWidth: 1,
+  textStyle: { color: '#e8edf5', fontSize: 12 },
+  extraCssText: 'backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(139,92,246,0.2);border-radius:8px;'
+};
+const CHART_GRID = { left: 50, right: 20, top: 30, bottom: 30, containLabel: true };
+const CHART_AXIS_LABEL = { color: '#6b7a90', fontSize: 11, fontFamily: 'Inter' };
+const CHART_SPLIT_LINE = { lineStyle: { color: 'rgba(139,92,246,0.08)', type: 'dashed' } };
+const CHART_AXIS_LINE = { lineStyle: { color: 'rgba(139,92,246,0.15)' } };
+
+function glowGradient(c1, c2, dir='vertical') {
+  return dir === 'vertical'
+    ? { type:'linear', x:0, y:0, x2:0, y2:1, colorStops:[{offset:0,color:c1},{offset:1,color:c2}] }
+    : { type:'linear', x:0, y:0, x2:1, y2:0, colorStops:[{offset:0,color:c1},{offset:1,color:c2}] };
+}
+
+function gaugeOption(value, name, c1, c2) {
+  return {
+    animationDuration: 1500, animationEasing: 'cubicOut',
+    series: [{
+      type: 'gauge', startAngle: 220, endAngle: -40,
+      min: 0, max: 100, radius: '92%', center: ['50%', '58%'],
+      progress: { show: true, width: 18, roundCap: true,
+        itemStyle: { color: glowGradient(c1, c2, 'horizontal'),
+          shadowColor: c1, shadowBlur: 20 }
+      },
+      pointer: { show: true, length: '55%', width: 3,
+        itemStyle: { color: c1, shadowColor: c1, shadowBlur: 8 } },
+      anchor: { show: true, size: 8, itemStyle: { color: c1, shadowColor: c1, shadowBlur: 10 } },
+      axisLine: { lineStyle: { width: 18,
+        color: [[value/100, 'transparent'],[1, 'rgba(255,255,255,0.04)']] } },
+      axisTick: { show: true, splitNumber: 5, length: 4,
+        lineStyle: { color: 'rgba(255,255,255,0.1)', width: 1 } },
+      splitLine: { show: true, length: 8,
+        lineStyle: { color: 'rgba(255,255,255,0.12)', width: 2 } },
+      axisLabel: { show: true, distance: 12, fontSize: 9, color: 'rgba(255,255,255,0.2)',
+        formatter: v => v % 20 === 0 ? v : '' },
+      title: { show: true, offsetCenter: [0, '35%'],
+        fontSize: 12, color: '#6b7a90', fontFamily: 'Inter' },
+      detail: { valueAnimation: true, offsetCenter: [0, '-2%'],
+        fontSize: 38, fontWeight: 700, fontFamily: 'JetBrains Mono',
+        color: '#fff',
+        formatter: '{value}',
+        textShadowColor: c1, textShadowBlur: 16 },
+      data: [{ value, name }]
+    }]
+  };
+}
+
+// --- Investor Charts ---
+function initInvestorCharts() {
+  const gauge = createChart('chart-investor-gauge');
+  if (gauge) gauge.setOption(gaugeOption(72, '增长质量评分', '#7B61FF', '#A78BFA'));
+
+  const waterfall = createChart('chart-investor-waterfall');
+  if (waterfall) waterfall.setOption({
+    tooltip: { ...CHART_TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(139,92,246,0.06)' } } },
+    grid: { left: 10, right: 15, top: 25, bottom: 5, containLabel: true },
+    xAxis: { type: 'category', data: ['汇率冲击','运费冲击','需求下滑','广告成本','综合影响'],
+      axisLabel: { ...CHART_AXIS_LABEL, fontSize: 10 }, axisLine: CHART_AXIS_LINE, axisTick: { show: false } },
+    yAxis: { type: 'value', axisLabel: { ...CHART_AXIS_LABEL, formatter: '{value}%' },
+      splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+    animationDuration: 1200, animationEasing: 'elasticOut',
+    series: [{
+      type: 'bar', barWidth: '50%', itemStyle: { borderRadius: [6,6,0,0] },
+      data: [
+        { value: -2.1, itemStyle: { color: glowGradient('#FF6B8A','#FF4D6D'), shadowColor: 'rgba(255,77,109,0.4)', shadowBlur: 12 } },
+        { value: -3.5, itemStyle: { color: glowGradient('#FF8C42','#FF4D6D'), shadowColor: 'rgba(255,140,66,0.4)', shadowBlur: 12 } },
+        { value: -1.8, itemStyle: { color: glowGradient('#FF6B8A','#FF4D6D'), shadowColor: 'rgba(255,77,109,0.3)', shadowBlur: 10 } },
+        { value: -0.5, itemStyle: { color: glowGradient('#fde047','#fbbf24'), shadowColor: 'rgba(251,191,36,0.3)', shadowBlur: 10 } },
+        { value: -7.9, itemStyle: { color: glowGradient('#FF4D6D','#7B61FF'), shadowColor: 'rgba(255,77,109,0.5)', shadowBlur: 18 } }
+      ],
+      label: { show: true, position: 'bottom', color: '#e8edf5', fontSize: 11, fontWeight: 600, formatter: '{c}%' }
+    }]
+  });
+
+  const scenario = createChart('chart-investor-scenario');
+  if (scenario) scenario.setOption({
+    tooltip: { ...CHART_TOOLTIP, trigger: 'axis' },
+    grid: { left: 10, right: 15, top: 25, bottom: 5, containLabel: true },
+    xAxis: { type: 'category', data: ['乐观','基准','悲观'],
+      axisLabel: CHART_AXIS_LABEL, axisLine: CHART_AXIS_LINE, axisTick: { show: false } },
+    yAxis: { type: 'value', name: '利润变化%', nameTextStyle: { color: '#6b7a90', fontSize: 10 },
+      axisLabel: CHART_AXIS_LABEL, splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+    animationDuration: 1200, animationEasing: 'elasticOut',
+    series: [{
+      type: 'bar', barWidth: '45%', itemStyle: { borderRadius: [8,8,0,0] },
+      data: [
+        { value: 2.3, itemStyle: { color: glowGradient('#34d399','#10b981'), shadowColor: 'rgba(16,185,129,0.5)', shadowBlur: 16 } },
+        { value: -3.1, itemStyle: { color: glowGradient('#fde047','#f59e0b'), shadowColor: 'rgba(245,158,11,0.4)', shadowBlur: 14 } },
+        { value: -8.2, itemStyle: { color: glowGradient('#FF6B8A','#FF4D6D'), shadowColor: 'rgba(255,77,109,0.5)', shadowBlur: 16 } }
+      ],
+      label: { show: true, position: 'top', color: '#fff', fontSize: 13, fontWeight: 700,
+        formatter: '{c}%', textShadowColor: 'rgba(0,0,0,0.5)', textShadowBlur: 4 }
+    }]
+  });
+
+  const radar = createChart('chart-investor-radar');
+  if (radar) radar.setOption({
+    animationDuration: 1500,
+    radar: {
+      indicator: [
+        { name: '增长质量', max: 100 }, { name: '费用效率', max: 100 },
+        { name: '履约效率', max: 100 }, { name: '资金安全', max: 100 },
+        { name: '结构风险', max: 100 }
+      ],
+      shape: 'polygon', splitNumber: 4, radius: '58%', center: ['50%', '45%'],
+      axisName: { color: '#8896ab', fontSize: 10 },
+      splitLine: { lineStyle: { color: 'rgba(139,92,246,0.12)' } },
+      splitArea: { show: true, areaStyle: { color: ['rgba(139,92,246,0.02)','rgba(139,92,246,0.05)','rgba(139,92,246,0.02)','rgba(139,92,246,0.05)'] } },
+      axisLine: { lineStyle: { color: 'rgba(139,92,246,0.15)' } }
+    },
+    series: [{
+      type: 'radar',
+      data: [
+        { value: [72, 65, 58, 80, 45], name: '安克创新',
+          areaStyle: { color: { type:'radial', x:0.5, y:0.5, r:0.6, colorStops:[
+            {offset:0, color:'rgba(123,97,255,0.35)'},{offset:1, color:'rgba(123,97,255,0.05)'}] } },
+          lineStyle: { color: '#A78BFA', width: 2, shadowColor: 'rgba(123,97,255,0.6)', shadowBlur: 8 },
+          itemStyle: { color: '#A78BFA', shadowColor: '#A78BFA', shadowBlur: 6, borderWidth: 2, borderColor: '#fff' },
+          symbol: 'circle', symbolSize: 6 },
+        { value: [60, 70, 72, 65, 55], name: '行业均值',
+          areaStyle: { color: 'rgba(99,102,241,0.06)' },
+          lineStyle: { color: '#6366F1', type: 'dashed', width: 1 },
+          itemStyle: { color: '#6366F1' }, symbol: 'diamond', symbolSize: 5 }
+      ]
+    }],
+    legend: { bottom: 0, textStyle: { color: '#8896ab', fontSize: 10 },
+      data: ['安克创新','行业均值'] }
+  });
+
+  const benchmark = createChart('chart-investor-benchmark');
+  if (benchmark) benchmark.setOption({
+    tooltip: { ...CHART_TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 10, right: 40, top: 10, bottom: 5, containLabel: true },
+    xAxis: { type: 'value', max: 100,
+      axisLabel: CHART_AXIS_LABEL, splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+    yAxis: { type: 'category', data: ['增长质量','费用效率','履约效率','资金安全','结构风险'],
+      axisLabel: { ...CHART_AXIS_LABEL, fontSize: 11 },
+      axisLine: { show: false }, axisTick: { show: false } },
+    animationDuration: 1200, animationDelay: (idx) => idx * 150,
+    series: [
+      { type: 'bar', barWidth: 12, z: 1, silent: true, barGap: '-100%',
+        data: [100,100,100,100,100].map(() => ({ value: 100, itemStyle: { color: 'rgba(139,92,246,0.06)', borderRadius: [0,6,6,0] } }))
+      },
+      { type: 'bar', barWidth: 12, z: 2,
+        data: [72,65,58,80,45].map((v,i) => ({
+          value: v,
+          itemStyle: {
+            color: glowGradient(['#818CF8','#6366F1','#8B5CF6','#A78BFA','#7B61FF'][i], ['#6366F1','#818CF8','#7B61FF','#8B5CF6','#A78BFA'][i], 'horizontal'),
+            borderRadius: [0,6,6,0],
+            shadowColor: 'rgba(139,92,246,0.4)', shadowBlur: 10
+          }
+        })),
+        label: { show: true, position: 'right', color: '#e8edf5', fontSize: 11, fontWeight: 600,
+          formatter: p => 'P' + p.value }
+      }
+    ]
+  });
+}
+
+// --- Enterprise Charts ---
+function initEnterpriseCharts() {
+  const gauge = createChart('chart-enterprise-gauge');
+  if (gauge) gauge.setOption(gaugeOption(81, 'EOHI 综合指数', '#00E5FF', '#7B61FF'));
+
+  const radar = createChart('chart-enterprise-radar');
+  if (radar) radar.setOption({
+    animationDuration: 1500,
+    radar: {
+      indicator: [
+        { name: '获客效率', max: 100 }, { name: '履约效率', max: 100 },
+        { name: '现金流效率', max: 100 }, { name: '库存管理', max: 100 }
+      ],
+      shape: 'polygon', splitNumber: 4, radius: '58%', center: ['50%', '45%'],
+      axisName: { color: '#8896ab', fontSize: 10 },
+      splitLine: { lineStyle: { color: 'rgba(0,229,255,0.1)' } },
+      splitArea: { show: true, areaStyle: { color: ['rgba(0,229,255,0.02)','rgba(0,229,255,0.04)','rgba(0,229,255,0.02)','rgba(0,229,255,0.04)'] } },
+      axisLine: { lineStyle: { color: 'rgba(0,229,255,0.12)' } }
+    },
+    series: [{
+      type: 'radar',
+      data: [
+        { value: [85, 72, 88, 76], name: '本企业',
+          areaStyle: { color: { type:'radial', x:0.5, y:0.5, r:0.6, colorStops:[
+            {offset:0, color:'rgba(0,229,255,0.3)'},{offset:1, color:'rgba(0,229,255,0.03)'}] } },
+          lineStyle: { color: '#00E5FF', width: 2, shadowColor: 'rgba(0,229,255,0.5)', shadowBlur: 8 },
+          itemStyle: { color: '#00E5FF', shadowColor: '#00E5FF', shadowBlur: 6, borderWidth: 2, borderColor: '#fff' },
+          symbol: 'circle', symbolSize: 6 },
+        { value: [70, 68, 75, 70], name: '行业均值',
+          areaStyle: { color: 'rgba(139,92,246,0.06)' },
+          lineStyle: { color: '#7B61FF', type: 'dashed', width: 1 },
+          itemStyle: { color: '#7B61FF' }, symbol: 'diamond', symbolSize: 5 }
+      ]
+    }],
+    legend: { bottom: 0, textStyle: { color: '#8896ab', fontSize: 10 } }
+  });
+
+  const impact = createChart('chart-enterprise-impact');
+  if (impact) impact.setOption({
+    tooltip: { ...CHART_TOOLTIP, trigger: 'axis' },
+    grid: { left: 10, right: 15, top: 25, bottom: 5, containLabel: true },
+    xAxis: { type: 'category', data: ['平台佣金','物流成本','关税政策'],
+      axisLabel: CHART_AXIS_LABEL, axisLine: CHART_AXIS_LINE, axisTick: { show: false } },
+    yAxis: { type: 'value', name: '影响度', nameTextStyle: { color: '#6b7a90', fontSize: 10 },
+      axisLabel: CHART_AXIS_LABEL, splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+    animationDuration: 1200, animationEasing: 'elasticOut',
+    series: [{
+      type: 'bar', barWidth: '40%', itemStyle: { borderRadius: [8,8,0,0] },
+      data: [
+        { value: 72, itemStyle: { color: glowGradient('#FF8C42','#FF6B3D'), shadowColor: 'rgba(255,140,66,0.5)', shadowBlur: 16 } },
+        { value: 85, itemStyle: { color: glowGradient('#FF6B8A','#FF4D6D'), shadowColor: 'rgba(255,77,109,0.5)', shadowBlur: 18 } },
+        { value: 45, itemStyle: { color: glowGradient('#fde047','#fbbf24'), shadowColor: 'rgba(251,191,36,0.4)', shadowBlur: 14 } }
+      ],
+      label: { show: true, position: 'top', color: '#fff', fontSize: 13, fontWeight: 700 }
+    }]
+  });
+
+  const priority = createChart('chart-enterprise-priority');
+  if (priority) priority.setOption({
+    tooltip: { ...CHART_TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 10, right: 30, top: 10, bottom: 5, containLabel: true },
+    xAxis: { type: 'value', max: 100,
+      axisLabel: CHART_AXIS_LABEL, splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+    yAxis: { type: 'category',
+      data: ['多平台分销','SKU优化','补货节奏','履约优化'],
+      axisLabel: { ...CHART_AXIS_LABEL, fontSize: 11 }, axisLine: { show: false }, axisTick: { show: false } },
+    animationDuration: 1200, animationDelay: (idx) => idx * 150,
+    series: [
+      { type: 'bar', barWidth: 14, z: 1, silent: true, barGap: '-100%',
+        data: [100,100,100,100].map(() => ({ value: 100, itemStyle: { color: 'rgba(0,229,255,0.05)', borderRadius: [0,6,6,0] } }))
+      },
+      { type: 'bar', barWidth: 14, z: 2,
+        data: [55, 72, 78, 90].map((v,i) => ({
+          value: v,
+          itemStyle: {
+            color: glowGradient('#00E5FF', '#7B61FF', 'horizontal'),
+            borderRadius: [0, 8, 8, 0],
+            shadowColor: 'rgba(0,229,255,0.4)', shadowBlur: 12
+          }
+        })),
+        label: { show: true, position: 'right', color: '#e8edf5', fontSize: 11, fontWeight: 600 }
+      }
+    ]
+  });
+}
+
+// --- Risk Charts ---
+function initRiskCharts() {
+  const heatmap = createChart('chart-risk-heatmap');
+  if (heatmap) heatmap.setOption({
+    tooltip: { ...CHART_TOOLTIP, trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 10, right: 50, top: 10, bottom: 5, containLabel: true },
+    xAxis: { type: 'value', max: 100,
+      axisLabel: CHART_AXIS_LABEL, splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+    yAxis: { type: 'category',
+      data: ['公司E','公司D','公司C','公司B','公司A'],
+      axisLabel: { ...CHART_AXIS_LABEL, fontSize: 11 }, axisLine: { show: false }, axisTick: { show: false } },
+    animationDuration: 1200, animationDelay: (idx) => idx * 120,
+    series: [
+      { type: 'bar', barWidth: 16, z: 1, silent: true, barGap: '-100%',
+        data: [100,100,100,100,100].map(() => ({ value: 100, itemStyle: { color: 'rgba(255,77,109,0.04)', borderRadius: [0,6,6,0] } }))
+      },
+      { type: 'bar', barWidth: 16, z: 2,
+        data: [
+          { value: 35, itemStyle: { color: glowGradient('#34d399','#10b981','horizontal'), shadowColor:'rgba(16,185,129,0.5)', shadowBlur:12, borderRadius:[0,6,6,0] } },
+          { value: 52, itemStyle: { color: glowGradient('#fde047','#fbbf24','horizontal'), shadowColor:'rgba(251,191,36,0.4)', shadowBlur:12, borderRadius:[0,6,6,0] } },
+          { value: 68, itemStyle: { color: glowGradient('#FFB07C','#FF8C42','horizontal'), shadowColor:'rgba(255,140,66,0.5)', shadowBlur:14, borderRadius:[0,6,6,0] } },
+          { value: 82, itemStyle: { color: glowGradient('#FF8CA0','#FF4D6D','horizontal'), shadowColor:'rgba(255,77,109,0.5)', shadowBlur:16, borderRadius:[0,6,6,0] } },
+          { value: 95, itemStyle: { color: glowGradient('#FF4D6D','#ff1a40','horizontal'), shadowColor:'rgba(255,26,64,0.6)', shadowBlur:20, borderRadius:[0,6,6,0] } }
+        ],
+        label: { show: true, position: 'right', color: '#e8edf5', fontSize: 11, fontWeight: 600,
+          formatter: p => ['低','中','中高','高','极高'][p.dataIndex] + ' ' + p.value }
+      }
+    ]
+  });
+
+  const network = createChart('chart-risk-network');
+  if (network) {
+    const nodes = [
+      { name: '安克创新', x: 200, y: 160, symbolSize: 55,
+        itemStyle: { color: '#FF4D6D', shadowColor: 'rgba(255,77,109,0.6)', shadowBlur: 25, borderColor: 'rgba(255,77,109,0.3)', borderWidth: 3 },
+        label: { color: '#fff', fontWeight: 600, fontSize: 12 } },
+      { name: '赛维时代', x: 80, y: 80, symbolSize: 40,
+        itemStyle: { color: '#FF8C42', shadowColor: 'rgba(255,140,66,0.5)', shadowBlur: 18, borderColor: 'rgba(255,140,66,0.3)', borderWidth: 2 },
+        label: { color: '#e8edf5' } },
+      { name: '华凯易佰', x: 320, y: 80, symbolSize: 36,
+        itemStyle: { color: '#fbbf24', shadowColor: 'rgba(251,191,36,0.4)', shadowBlur: 15, borderColor: 'rgba(251,191,36,0.3)', borderWidth: 2 },
+        label: { color: '#e8edf5' } },
+      { name: '子不语', x: 100, y: 260, symbolSize: 32,
+        itemStyle: { color: '#fbbf24', shadowColor: 'rgba(251,191,36,0.3)', shadowBlur: 12 },
+        label: { color: '#e8edf5' } },
+      { name: '三态股份', x: 300, y: 250, symbolSize: 30,
+        itemStyle: { color: '#10b981', shadowColor: 'rgba(16,185,129,0.4)', shadowBlur: 12 },
+        label: { color: '#e8edf5' } },
+      { name: '吉宏股份', x: 200, y: 300, symbolSize: 28,
+        itemStyle: { color: '#10b981', shadowColor: 'rgba(16,185,129,0.3)', shadowBlur: 10 },
+        label: { color: '#e8edf5' } }
+    ];
+    const edges = [
+      { source: '安克创新', target: '赛维时代', lineStyle: { width: 3, color: '#FF4D6D', curveness: 0.2, shadowColor: 'rgba(255,77,109,0.4)', shadowBlur: 8 } },
+      { source: '安克创新', target: '华凯易佰', lineStyle: { width: 2.5, color: '#FF8C42', curveness: 0.2, shadowColor: 'rgba(255,140,66,0.3)', shadowBlur: 6 } },
+      { source: '安克创新', target: '子不语', lineStyle: { width: 2, color: '#fbbf24', curveness: 0.2, shadowColor: 'rgba(251,191,36,0.3)', shadowBlur: 5 } },
+      { source: '赛维时代', target: '子不语', lineStyle: { width: 1.5, color: 'rgba(251,191,36,0.5)', curveness: 0.3 } },
+      { source: '安克创新', target: '三态股份', lineStyle: { width: 1.5, color: 'rgba(16,185,129,0.5)', curveness: 0.2 } },
+      { source: '华凯易佰', target: '吉宏股份', lineStyle: { width: 1, color: 'rgba(16,185,129,0.4)', curveness: 0.3 } }
+    ];
+    network.setOption({
+      animationDuration: 2000, animationEasingUpdate: 'quinticInOut',
+      series: [{
+        type: 'graph', layout: 'none', roam: true,
+        label: { show: true, fontSize: 11, color: '#e8edf5' },
+        lineStyle: { curveness: 0.2 },
+        emphasis: { focus: 'adjacency', lineStyle: { width: 5 },
+          itemStyle: { shadowBlur: 30 } },
+        data: nodes, links: edges
+      }]
+    });
+  }
+
+  const heatBar = createChart('chart-risk-heat-bar');
+  if (heatBar) heatBar.setOption({
+    tooltip: { ...CHART_TOOLTIP, trigger: 'axis' },
+    grid: { left: 10, right: 15, top: 20, bottom: 5, containLabel: true },
+    xAxis: { type: 'category', data: ['DTC品牌','平台卖家','供应链型','服务商'],
+      axisLabel: CHART_AXIS_LABEL, axisLine: CHART_AXIS_LINE, axisTick: { show: false } },
+    yAxis: { type: 'value', name: '风险指数', nameTextStyle: { color: '#6b7a90', fontSize: 10 },
+      axisLabel: CHART_AXIS_LABEL, splitLine: CHART_SPLIT_LINE, axisLine: { show: false } },
+    animationDuration: 1200, animationEasing: 'elasticOut',
+    series: [{
+      type: 'bar', barWidth: '40%', itemStyle: { borderRadius: [8,8,0,0] },
+      data: [
+        { value: 72, itemStyle: { color: glowGradient('#FF6B8A','#FF4D6D'), shadowColor:'rgba(255,77,109,0.5)', shadowBlur:16 } },
+        { value: 58, itemStyle: { color: glowGradient('#FFB07C','#FF8C42'), shadowColor:'rgba(255,140,66,0.4)', shadowBlur:14 } },
+        { value: 45, itemStyle: { color: glowGradient('#fde047','#fbbf24'), shadowColor:'rgba(251,191,36,0.4)', shadowBlur:12 } },
+        { value: 25, itemStyle: { color: glowGradient('#34d399','#10b981'), shadowColor:'rgba(16,185,129,0.4)', shadowBlur:12 } }
+      ],
+      label: { show: true, position: 'top', color: '#fff', fontSize: 12, fontWeight: 700 }
+    }]
+  });
+
+  const compliance = createChart('chart-risk-compliance');
+  if (compliance) compliance.setOption(gaugeOption(67, '合规评分', '#10b981', '#fbbf24'));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   7a. PDF EXPORT
+   ═══════════════════════════════════════════════════════════ */
+async function exportPDF(btn) {
+  const page = btn.closest('.page');
+  const agent = page.id.replace('page-', '');
+  const agentInfo = AGENTS[agent];
+  btn.classList.add('exporting');
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<i class="ri-loader-4-line" style="animation:spin .8s linear infinite"></i> 导出中...';
+
+  try {
+    const container = document.createElement('div');
+    container.style.cssText = 'width:700px;padding:40px;background:#0a0a0e;color:#e8edf5;font-family:Inter,system-ui,sans-serif;';
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('zh-CN', {year:'numeric',month:'long',day:'numeric'}) + ' ' + now.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+
+    // --- Header ---
+    container.innerHTML = `
+      <div style="border-bottom:2px solid rgba(167,139,250,0.3);padding-bottom:20px;margin-bottom:24px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h1 style="margin:0;font-size:24px;font-weight:700;color:#fff;">智析 AI · 分析报告</h1>
+            <p style="margin:6px 0 0;font-size:13px;color:#6b7a90;">${agentInfo.name} · ${dateStr}</p>
+          </div>
+          <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7B61FF,#C4B5FD);display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:20px;font-weight:800;color:#fff;">智</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // --- Chat messages ---
+    const messages = page.querySelectorAll('.chat-messages .msg');
+    if (messages.length > 0) {
+      let chatHtml = '<h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:#C4B5FD;">对话记录</h2>';
+      messages.forEach(msg => {
+        const isUser = msg.classList.contains('user');
+        const bubble = msg.querySelector('.msg-bubble');
+        if (!bubble) return;
+        const role = isUser ? '你' : agentInfo.name;
+        const time = msg.querySelector('.msg-meta span:last-child')?.textContent || '';
+        const bgColor = isUser ? 'rgba(167,139,250,0.1)' : 'rgba(255,255,255,0.03)';
+        const borderColor = isUser ? 'rgba(167,139,250,0.25)' : 'rgba(255,255,255,0.06)';
+        chatHtml += `
+          <div style="margin-bottom:14px;padding:14px 16px;background:${bgColor};border:1px solid ${borderColor};border-radius:10px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span style="font-size:12px;font-weight:600;color:${isUser?'#C4B5FD':'#00E5FF'};">${role}</span>
+              <span style="font-size:11px;color:#6b7a90;">${time}</span>
+            </div>
+            <div style="font-size:13px;line-height:1.7;color:#d1d5db;">${bubble.innerHTML}</div>
+          </div>
+        `;
+      });
+      container.innerHTML += chatHtml;
+    }
+
+    // --- ALL tabs: iterate every tab pane, init charts if needed, export ---
+    const vizPanel = page.querySelector('.viz-panel');
+    if (vizPanel) {
+      const tabPanes = vizPanel.querySelectorAll('.viz-tab-pane');
+      const tabBtns = vizPanel.querySelectorAll('.viz-tab');
+
+      // Remember which tab was originally active
+      const origActiveIdx = Array.from(tabBtns).findIndex(b => b.classList.contains('active'));
+
+      for (let i = 0; i < tabPanes.length; i++) {
+        const pane = tabPanes[i];
+        const tabName = tabBtns[i] ? tabBtns[i].textContent.trim() : ('分析 ' + (i+1));
+
+        // Temporarily show this pane to init charts
+        const wasActive = pane.classList.contains('active');
+        if (!wasActive) {
+          pane.style.display = 'block';
+          // Init any un-initialized charts in this pane
+          const chartEls = pane.querySelectorAll('.chart-container');
+          chartEls.forEach(el => {
+            if (!state.charts[el.id]) {
+              initCharts(agent);
+            }
+          });
+          // Give charts time to render
+          await new Promise(r => setTimeout(r, 300));
+        }
+
+        // Section title
+        container.innerHTML += `<h2 style="font-size:15px;font-weight:600;margin:${i===0?'24px':'32px'} 0 14px;color:#C4B5FD;border-left:3px solid #A78BFA;padding-left:10px;">${tabName}</h2>`;
+
+        // Metric cards
+        const metricGrid = pane.querySelector('.metric-grid');
+        if (metricGrid) {
+          let metricsHtml = '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">';
+          metricGrid.querySelectorAll('.metric-card').forEach(card => {
+            const label = card.querySelector('.metric-label')?.textContent || '';
+            const value = card.querySelector('.metric-value')?.textContent || '';
+            const change = card.querySelector('.metric-change')?.textContent || '';
+            const isUp = card.querySelector('.metric-change.up');
+            const changeColor = isUp ? '#34d399' : '#FF6B8A';
+            metricsHtml += `
+              <div style="flex:1;min-width:140px;padding:14px;background:rgba(6,6,12,0.8);border:1px solid rgba(167,139,250,0.15);border-radius:8px;">
+                <div style="font-size:11px;color:#8896ab;margin-bottom:6px;">${label}</div>
+                <div style="font-size:22px;font-weight:800;color:#fff;font-family:JetBrains Mono,monospace;">${value}</div>
+                <div style="font-size:11px;color:${changeColor};margin-top:4px;">${change}</div>
+              </div>
+            `;
+          });
+          metricsHtml += '</div>';
+          container.innerHTML += metricsHtml;
+        }
+
+        // Charts as images
+        const chartBoxes = pane.querySelectorAll('.chart-box');
+        for (const box of chartBoxes) {
+          const titleEl = box.querySelector('.chart-title');
+          const chartEl = box.querySelector('.chart-container');
+          const title = titleEl ? titleEl.textContent.trim() : '';
+
+          if (chartEl && state.charts[chartEl.id]) {
+            const chart = state.charts[chartEl.id];
+            chart.resize();
+            await new Promise(r => setTimeout(r, 100));
+            const imgURL = chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#0a0a0e' });
+            container.innerHTML += `
+              <div style="margin-bottom:14px;padding:16px;background:rgba(6,6,12,0.8);border:1px solid rgba(167,139,250,0.12);border-radius:10px;">
+                <div style="font-size:12px;font-weight:600;color:#8896ab;margin-bottom:10px;">${title}</div>
+                <img src="${imgURL}" style="width:100%;border-radius:6px;" />
+              </div>
+            `;
+          }
+
+          // Non-chart content (risk lists, compliance items, sliders, evidence)
+          if (!chartEl) {
+            const riskItems = box.querySelectorAll('.risk-item');
+            const compItems = box.querySelectorAll('.compliance-item');
+            const evidenceItems = box.querySelectorAll('.evidence-item');
+            let contentHtml = '';
+
+            if (riskItems.length) {
+              riskItems.forEach(item => {
+                contentHtml += `<div style="padding:10px 14px;margin-bottom:6px;background:rgba(255,255,255,0.03);border-left:3px solid #fbbf24;border-radius:4px;font-size:12px;color:#d1d5db;">${item.textContent}</div>`;
+              });
+            }
+            if (compItems.length) {
+              compItems.forEach(item => {
+                const isPassed = item.classList.contains('pass');
+                const isFail = item.classList.contains('fail');
+                const color = isPassed ? '#34d399' : isFail ? '#FF6B8A' : '#fbbf24';
+                contentHtml += `<div style="padding:10px 14px;margin-bottom:6px;background:rgba(255,255,255,0.03);border-left:3px solid ${color};border-radius:4px;font-size:12px;color:#d1d5db;">${item.textContent}</div>`;
+              });
+            }
+            if (evidenceItems.length) {
+              evidenceItems.forEach(item => {
+                contentHtml += `<div style="padding:10px 14px;margin-bottom:6px;background:rgba(255,255,255,0.03);border-left:3px solid #A78BFA;border-radius:4px;font-size:12px;color:#d1d5db;">${item.textContent}</div>`;
+              });
+            }
+
+            if (contentHtml) {
+              container.innerHTML += `
+                <div style="margin-bottom:14px;padding:16px;background:rgba(6,6,12,0.8);border:1px solid rgba(167,139,250,0.12);border-radius:10px;">
+                  <div style="font-size:12px;font-weight:600;color:#8896ab;margin-bottom:10px;">${title}</div>
+                  ${contentHtml}
+                </div>
+              `;
+            }
+          }
+        }
+
+        // Restore hidden pane
+        if (!wasActive) {
+          pane.style.display = '';
+        }
+      }
+
+      // Restore original active tab
+      if (origActiveIdx >= 0 && tabBtns[origActiveIdx]) {
+        tabPanes.forEach(p => p.classList.remove('active'));
+        tabPanes[origActiveIdx].classList.add('active');
+      }
+    }
+
+    // --- Footer ---
+    container.innerHTML += `
+      <div style="margin-top:30px;padding-top:16px;border-top:1px solid rgba(167,139,250,0.15);display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;color:#6b7a90;">Generated by 智析 MultiAgent Platform</span>
+        <span style="font-size:11px;color:#6b7a90;">${dateStr}</span>
+      </div>
+    `;
+
+    // --- Generate PDF ---
+    const opt = {
+      margin: [10, 0, 10, 0],
+      filename: `智析报告_${agentInfo.name}_${now.toISOString().slice(0,10)}.pdf`,
+      image: { type: 'png', quality: 1 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0a0a0e' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    await html2pdf().set(opt).from(container).save();
+
+  } catch (err) {
+    console.error('PDF export failed:', err);
+    alert('导出失败：' + err.message);
+  } finally {
+    btn.classList.remove('exporting');
+    btn.innerHTML = origHTML;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   7. SCENARIO SLIDER UPDATE
+   ═══════════════════════════════════════════════════════════ */
+function updateScenario() {
+  document.querySelectorAll('.slider-row').forEach(row => {
+    const input = row.querySelector('input[type="range"]');
+    const display = row.querySelector('.slider-val');
+    if (input && display) {
+      const v = parseInt(input.value);
+      display.textContent = (v >= 0 ? '+' : '') + v + '%';
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   8. WINDOW RESIZE
+   ═══════════════════════════════════════════════════════════ */
+window.addEventListener('resize', () => {
+  Object.values(state.charts).forEach(c => c?.resize());
+});
+
+/* ═══════════════════════════════════════════════════════════
+   9. WELCOME SCREEN (empty state)
+   ═══════════════════════════════════════════════════════════ */
+const WELCOME_CONFIG = {
+  investor: {
+    icon: 'ri-line-chart-line',
+    gradient: 'linear-gradient(135deg, #7B61FF, #6366F1)',
+    title: '你好，我是投资者智能体',
+    desc: '我可以帮你进行以下分析，输入问题开始对话',
+    caps: [
+      { icon: 'ri-scan-2-line', name: '财报增长质量筛查', desc: '解析财报核心指标与风险红旗', query: '分析安克创新2023年年报，评估增长质量和现金流风险' },
+      { icon: 'ri-contrast-line', name: '冲击传导分析', desc: '汇率/运费/需求情景推演', query: '假设人民币升值2%、海运费上涨20%，分析对安克创新利润的影响' },
+      { icon: 'ri-bar-chart-grouped-line', name: '同业对标分析', desc: '多维度竞争力对比评估', query: '将安克创新与同业可比公司进行对标分析' },
+      { icon: 'ri-file-text-line', name: '投研简报生成', desc: '一键导出可溯源研报', query: '为安克创新生成一份投研简报' }
+    ]
+  },
+  enterprise: {
+    icon: 'ri-building-2-line',
+    gradient: 'linear-gradient(135deg, #00E5FF, #7B61FF)',
+    title: '你好，我是企业智能体',
+    desc: '我可以帮你进行以下分析，输入问题开始对话',
+    caps: [
+      { icon: 'ri-heart-pulse-line', name: '运营健康度诊断', desc: '多维指标综合评估', query: '对赛维时代进行运营健康度诊断' },
+      { icon: 'ri-government-line', name: '政策影响评估', desc: '合规风险与机遇分析', query: '评估当前平台规则和关税政策对企业的影响' },
+      { icon: 'ri-focus-3-line', name: '战略优化建议', desc: '数据驱动的增长策略', query: '为赛维时代生成战略优化建议' },
+      { icon: 'ri-bar-chart-2-line', name: '运营报告生成', desc: '一键导出运营分析报告', query: '生成一份完整的运营优化报告' }
+    ]
+  },
+  risk: {
+    icon: 'ri-shield-check-line',
+    gradient: 'linear-gradient(135deg, #FF4D6D, #FF8C42)',
+    title: '你好，我是风险监测智能体',
+    desc: '我可以帮你进行以下分析，输入问题开始对话',
+    caps: [
+      { icon: 'ri-alarm-warning-line', name: '财务异常识别', desc: '多指标风险评分模型', query: '扫描跨境电商行业的财务异常企业' },
+      { icon: 'ri-mind-map', name: '风险传播网络', desc: '系统性风险关系图谱', query: '分析安克创新的风险传播网络' },
+      { icon: 'ri-checkbox-multiple-line', name: '合规自动核查', desc: '信息披露合规评分', query: '核查安克创新的信息披露合规性' },
+      { icon: 'ri-file-shield-2-line', name: '监管报告生成', desc: '一键导出风险监测报告', query: '生成跨境电商行业风险监测报告' }
+    ]
+  }
+};
+
+function renderWelcome(agent) {
+  const cfg = WELCOME_CONFIG[agent];
+  const container = document.getElementById(agent + '-messages');
+  container.innerHTML = `
+    <div class="welcome-screen">
+      <div class="welcome-icon" data-agent="${agent}">
+        <span class="orbit"></span>
+        <span class="orbit"></span>
+        <span class="orbit"></span>
+        <span class="orbit"></span>
+        <i class="${cfg.icon}"></i>
+      </div>
+      <h2 class="welcome-title">${cfg.title}</h2>
+      <p class="welcome-desc">${cfg.desc}</p>
+      <div class="welcome-caps">
+        ${cfg.caps.map((c, i) => `
+          <div class="welcome-cap" onclick="quickSend('${agent}', ${i})">
+            <i class="${c.icon}"></i>
+            <div class="welcome-cap-name">${c.name}</div>
+            <div class="welcome-cap-desc">${c.desc}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderQuickActions(agent) {
+  const el = document.getElementById(agent + '-quick-actions');
+  const caps = WELCOME_CONFIG[agent].caps;
+  el.innerHTML = caps.map((c, i) =>
+    `<button class="quick-action" onclick="quickSend('${agent}',${i})"><i class="${c.icon}"></i>${c.name}</button>`
+  ).join('');
+}
+
+function quickSend(agent, capIndex) {
+  const query = WELCOME_CONFIG[agent].caps[capIndex].query;
+  const input = document.getElementById(agent + '-input');
+  input.value = query;
+  sendMessage(agent);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   10. INIT
+   ═══════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  ['investor','enterprise','risk'].forEach(a => { renderWelcome(a); });
+});
+
+/* ═══════════════════════════════════════════════════════════
+   11. LIGHT RAYS BACKGROUND (WebGL Shader)
+   ═══════════════════════════════════════════════════════════ */
+(function initLightRays() {
+  const canvas = document.getElementById('aurora-canvas');
+  const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
+  if (!gl) return;
+
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  function resize() {
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const vsSource = `
+    attribute vec2 a_position;
+    void main() {
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  const fsSource = `
+    precision highp float;
+    uniform float iTime;
+    uniform vec2  iResolution;
+    uniform vec2  rayPos;
+    uniform vec2  rayDir;
+    uniform vec3  raysColor;
+
+    float rayStrength(vec2 raySource, vec2 rayRefDirection, vec2 coord,
+                      float seedA, float seedB, float speed) {
+      vec2 sourceToCoord = coord - raySource;
+      vec2 dirNorm = normalize(sourceToCoord);
+      float cosAngle = dot(dirNorm, rayRefDirection);
+      float spreadFactor = pow(max(cosAngle, 0.0), 1.0);
+      float distance = length(sourceToCoord);
+      float maxDistance = iResolution.x * 2.0;
+      float lengthFalloff = clamp((maxDistance - distance) / maxDistance, 0.0, 1.0);
+      float fadeFalloff = clamp((iResolution.x * 1.0 - distance) / (iResolution.x * 1.0), 0.5, 1.0);
+      float baseStrength = clamp(
+        (0.45 + 0.15 * sin(cosAngle * seedA + iTime * speed)) +
+        (0.3 + 0.2 * cos(-cosAngle * seedB + iTime * speed)),
+        0.0, 1.0
+      );
+      return baseStrength * lengthFalloff * fadeFalloff * spreadFactor;
+    }
+
+    void main() {
+      vec2 coord = vec2(gl_FragCoord.x, iResolution.y - gl_FragCoord.y);
+      vec4 rays1 = vec4(1.0) * rayStrength(rayPos, rayDir, coord, 36.2214, 21.11349, 1.5);
+      vec4 rays2 = vec4(1.0) * rayStrength(rayPos, rayDir, coord, 22.3991, 18.0234, 1.1);
+      vec4 fragColor = rays1 * 0.3 + rays2 * 0.25;
+      float brightness = 1.0 - (coord.y / iResolution.y);
+      fragColor.x *= 0.1 + brightness * 0.8;
+      fragColor.y *= 0.3 + brightness * 0.6;
+      fragColor.z *= 0.5 + brightness * 0.5;
+      fragColor.rgb *= raysColor;
+      gl_FragColor = fragColor;
+    }
+  `;
+
+  function createShader(type, source) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, source);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error('Shader compile error:', gl.getShaderInfoLog(s));
+      gl.deleteShader(s);
+      return null;
+    }
+    return s;
+  }
+
+  const vs = createShader(gl.VERTEX_SHADER, vsSource);
+  const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
+  if (!vs || !fs) return;
+
+  const program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error('Program link error:', gl.getProgramInfoLog(program));
+    return;
+  }
+  gl.useProgram(program);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(program, 'a_position');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const uTime = gl.getUniformLocation(program, 'iTime');
+  const uRes = gl.getUniformLocation(program, 'iResolution');
+  const uRayPos = gl.getUniformLocation(program, 'rayPos');
+  const uRayDir = gl.getUniformLocation(program, 'rayDir');
+  const uColor = gl.getUniformLocation(program, 'raysColor');
+
+  // #7B61FF
+  gl.uniform3f(uColor, 0.482, 0.38, 1.0);
+  gl.uniform2f(uRayDir, 0.0, 1.0);
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.clearColor(0, 0, 0, 0);
+
+  function render(time) {
+    const w = canvas.width;
+    const h = canvas.height;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(uTime, time * 0.001);
+    gl.uniform2f(uRes, w, h);
+    gl.uniform2f(uRayPos, w * 0.5, -h * 0.2);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+})();
+
+// ═══════════════════════════════════════════════════════════
+//  12. STARFIELD BACKGROUND
+// ═══════════════════════════════════════════════════════════
+(function initStarfield() {
+  const canvas = document.getElementById('starfield');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const stars = [];
+  const COUNT = 400;
+
+  function resize() {
+    canvas.width = canvas.offsetWidth * devicePixelRatio;
+    canvas.height = canvas.offsetHeight * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < COUNT; i++) {
+    const isBright = Math.random() < 0.12;
+    stars.push({
+      x: Math.random() * canvas.offsetWidth,
+      y: Math.random() * canvas.offsetHeight,
+      r: isBright ? Math.random() * 2 + 1.8 : Math.random() * 1.6 + 0.3,
+      vx: (Math.random() - 0.5) * 0.2,
+      vy: (Math.random() - 0.5) * 0.2,
+      alpha: isBright ? Math.random() * 0.3 + 0.7 : Math.random() * 0.5 + 0.3,
+      pulse: Math.random() * Math.PI * 2,
+      bright: isBright
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    const t = Date.now() * 0.001;
+    stars.forEach(s => {
+      s.x += s.vx;
+      s.y += s.vy;
+      if (s.x < 0) s.x = canvas.offsetWidth;
+      if (s.x > canvas.offsetWidth) s.x = 0;
+      if (s.y < 0) s.y = canvas.offsetHeight;
+      if (s.y > canvas.offsetHeight) s.y = 0;
+      const a = s.alpha * (0.5 + 0.5 * Math.sin(t * 1.5 + s.pulse));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = s.bright ? `rgba(230,220,255,${a})` : `rgba(200,190,255,${a})`;
+      if (s.bright) {
+        ctx.shadowColor = 'rgba(139,92,246,0.6)';
+        ctx.shadowBlur = 10;
+      }
+      ctx.fill();
+      if (s.bright) ctx.shadowBlur = 0;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>
